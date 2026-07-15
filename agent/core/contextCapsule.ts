@@ -4,6 +4,7 @@ import type { ContextCapsule, Evidence, ProjectDiscovery, RepositoryGraph } from
 
 const maxFiles = 8
 const maxExcerptLines = 120
+const maxExcerptCharacters = 2_400
 
 export async function createContextCapsule(
   evidence: Evidence[]
@@ -15,6 +16,7 @@ export async function createContextCapsule(
   }
   const seeds = selectSeedFiles(evidence, discovery)
   const relevantPaths = expandRelevantFiles(graph, seeds)
+  const capsuleEvidence = compactEvidence(evidence, discovery, graph, relevantPaths)
 
   const relevantFiles = await Promise.all(relevantPaths.map(async (path) => ({
     path,
@@ -23,15 +25,56 @@ export async function createContextCapsule(
   })))
 
   return {
-    evidence,
+    evidence: capsuleEvidence,
     project: {
       framework: discovery.framework,
       packageManager: discovery.packageManager,
       entryPoints: discovery.entryPoints
     },
     relevantFiles,
-    reproductionContext: evidence.map((item) => item.summary)
+    reproductionContext: capsuleEvidence.map((item) => item.summary)
   }
+}
+
+function compactEvidence(evidence: Evidence[], discovery: ProjectDiscovery, graph: RepositoryGraph, relevantPaths: string[]): Evidence[] {
+  const relevantPathSet = new Set(relevantPaths)
+  return evidence.map((item) => {
+    if (item.kind === 'repository_discovery') {
+      return {
+        ...item,
+        data: {
+          framework: discovery.framework,
+          packageManager: discovery.packageManager,
+          packageName: discovery.packageName,
+          entryPoints: discovery.entryPoints,
+          routes: discovery.routes,
+          projectFileCount: discovery.files.length,
+          ignoredFileCount: discovery.ignoredFileCount
+        }
+      }
+    }
+    if (item.kind === 'repository_graph') {
+      const nodes = graph.nodes.filter((node) => relevantPathSet.has(node.path))
+      const nodeIds = new Set(nodes.map((node) => node.id))
+      return {
+        ...item,
+        data: {
+          nodes,
+          edges: graph.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to)),
+          selectedFileCount: relevantPaths.length
+        }
+      }
+    }
+    if (item.kind === 'screenshot') return { ...item, data: {} }
+    return { ...item, data: compactData(item.data) }
+  })
+}
+
+function compactData(data: unknown): unknown {
+  if (typeof data === 'string') return truncate(data, maxExcerptCharacters)
+  if (Array.isArray(data)) return data.slice(0, 50).map(compactData)
+  if (!data || typeof data !== 'object') return data
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, compactData(value)]))
 }
 
 function selectSeedFiles(evidence: Evidence[], discovery: ProjectDiscovery): Set<string> {
@@ -80,10 +123,14 @@ function expandRelevantFiles(analysisGraph: RepositoryGraph, seeds: Set<string>)
 async function readSafeExcerpt(projectRoot: string, projectFile: string): Promise<string> {
   try {
     const source = await readFile(resolveProjectFile(projectRoot, projectFile), 'utf8')
-    return redactSensitiveValues(source.split(/\r?\n/).slice(0, maxExcerptLines).join('\n'))
+    return truncate(redactSensitiveValues(source.split(/\r?\n/).slice(0, maxExcerptLines).join('\n')), maxExcerptCharacters)
   } catch {
     return ''
   }
+}
+
+function truncate(value: string, maximum: number): string {
+  return value.length <= maximum ? value : `${value.slice(0, maximum)}\n…[truncated]`
 }
 
 function redactSensitiveValues(source: string): string {

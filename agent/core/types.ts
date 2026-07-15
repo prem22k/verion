@@ -97,3 +97,10 @@ export type ReleaseReport = {
   evidenceIds: string[]
   nextAction: string
 }
+
+export type ProjectVerificationResult = {
+  evidence: Evidence[]
+  capsule: ContextCapsule
+  report?: ReleaseReport
+  diagnosisUnavailable?: string
+}
