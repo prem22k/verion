@@ -24,11 +24,27 @@ The future of software creation is faster, but speed without confidence creates 
 
 ## Current Status
 
-Hackathon foundation. The product direction is being defined before implementation begins.
+Phase 1 vertical slice in progress: a local Playwright agent verifies the companion workspace-creation flow and returns a grouped, evidence-backed release decision.
 
-## Links
+## Run Locally
 
-- Product:
-- Demo:
-- Design:
-- Notes:
+```bash
+npm install
+npx playwright install chromium
+npm run dev:verion
+```
+
+Open `http://127.0.0.1:5173` and select **Verify application**. The local agent explores the companion application at `/demo-target` and returns the verification result to the dashboard.
+
+To run the local agent directly:
+
+```bash
+npm run verify:demo
+```
+
+## Documentation
+
+- [Documentation guide](docs/README.md)
+- [Hackathon operating guide](HACKATHON.md)
+- [Current execution](EXECUTION.md)
+- [Shipping sprint](SPRINT.md)
