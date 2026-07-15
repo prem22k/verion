@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { createContextCapsule } from './core/contextCapsule'
+import { diagnoseContextCapsule } from './core/gptDiagnosis'
 import type { Evidence } from './core/types'
 import { RepositoryDiscoveryProducer } from './evidence/repositoryDiscoveryProducer'
 import { RepositoryGraphProducer } from './evidence/repositoryGraphProducer'
@@ -36,7 +37,22 @@ async function main() {
     process.stdout.write(`${JSON.stringify(capsule, null, 2)}\n`)
     return
   }
-  throw new Error('Usage: verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path>')
+  if (command === 'verify') {
+    const capsule = await createContextCapsule(evidence)
+    try {
+      const report = await diagnoseContextCapsule(capsule)
+      process.stdout.write(`${JSON.stringify({ evidence, capsule, report }, null, 2)}\n`)
+    } catch (error: unknown) {
+      process.stdout.write(`${JSON.stringify({
+        evidence,
+        capsule,
+        diagnosisUnavailable: error instanceof Error ? error.message : 'GPT diagnosis could not complete.'
+      }, null, 2)}\n`)
+      process.exitCode = 1
+    }
+    return
+  }
+  throw new Error('Usage: verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path> | verion verify --project <path> [--url <running-app-url>]')
 }
 
 main().catch((error: unknown) => {

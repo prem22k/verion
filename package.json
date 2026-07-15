@@ -11,7 +11,8 @@
     "verify:demo": "tsx agent/run-verification.ts",
     "capture:dashboard": "tsx agent/capture-dashboard.ts",
     "discover": "tsx agent/cli.ts discover",
-    "capsule": "tsx agent/cli.ts capsule"
+    "capsule": "tsx agent/cli.ts capsule",
+    "verify": "tsx agent/cli.ts verify"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

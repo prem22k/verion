@@ -87,3 +87,13 @@ export type ContextCapsule = {
   relevantFiles: Array<{ path: string; reason: string; excerpt: string }>
   reproductionContext: string[]
 }
+
+export type ReleaseRecommendation = 'ready_to_ship' | 'needs_attention' | 'inconclusive'
+
+export type ReleaseReport = {
+  recommendation: ReleaseRecommendation
+  headline: string
+  diagnosis: string
+  evidenceIds: string[]
+  nextAction: string
+}
