@@ -58,7 +58,8 @@ export class BrowserObservationProducer implements EvidenceProducer {
         })
       })
 
-      const response = await page.goto(context.targetUrl, { waitUntil: 'networkidle', timeout: 45_000 })
+      const response = await page.goto(context.targetUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 })
+      await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => undefined)
       const screenshotPath = join(runDirectory, 'initial-page.png')
       await page.screenshot({ path: screenshotPath, fullPage: true })
       const interactiveElements = await page.locator('a, button, input, select, textarea, [role="button"]').evaluateAll((elements) =>
