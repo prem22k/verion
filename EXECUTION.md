@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-Product foundation — make Verion target-agnostic for arbitrary React, Next.js, and Vite projects.
+Complete the first target-agnostic vertical slice: discovery → graph → browser evidence → Context Capsule → GPT diagnosis → release report.
 
 ## Completed Work
 
@@ -29,20 +29,22 @@ Product foundation — make Verion target-agnostic for arbitrary React, Next.js,
 - Refactored Context Capsules to accept Evidence only.
 - Added a target-agnostic browser Evidence Producer for page observation, console logs, failed/HTTP-error network responses, and screenshots.
 - Verified the Evidence-first orchestrator against an unrelated local project with no target URL.
+- Froze the Evidence-first architecture; no additional producers or interfaces are part of this milestone.
+- Added a tracked `.env.example` containing the required GPT diagnosis configuration and protected local `.env` files from Git.
 
 ## In-Progress Work
 
-- Extending the Evidence-first orchestrator with additional target-agnostic verification producers.
+- Completing and validating the existing end-to-end local-agent path, including capsule-only GPT diagnosis and its structured release report.
 
 ## Blockers
 
-- No active implementation blocker.
+- `OPENAI_API_KEY` is not configured in the current environment, so the final live GPT diagnosis and structured release report cannot yet be verified against the Responses API.
 
 ## Next Steps
 
-1. Add browser exploration, console, network, and screenshot Evidence Producers behind the same contract.
-2. Add a guarded ServX adapter that emits security-finding Evidence only.
-3. Replace proof-only dashboard data with the target-agnostic orchestration result.
+1. Validate `verion verify` against a running target with `OPENAI_API_KEY` configured.
+2. Connect the proven vertical-slice result to the dashboard.
+3. Improve individual producers only after the vertical slice is reliable.
 
 ## Important Decisions
 

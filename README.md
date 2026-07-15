@@ -24,22 +24,24 @@ The future of software creation is faster, but speed without confidence creates 
 
 ## Current Status
 
-Phase 1 vertical slice in progress: a local Playwright agent verifies the companion workspace-creation flow and returns a grouped, evidence-backed release decision.
+The local-agent vertical slice is in progress: Verion discovers a local project, maps its repository, observes an optional running application, builds a Context Capsule from normalized Evidence, and produces a structured release report.
 
 ## Run Locally
 
 ```bash
 npm install
 npx playwright install chromium
-npm run dev:verion
+cp .env.example .env
+set -a && source .env && set +a
+npm run verify -- --project /absolute/path/to/project --url http://127.0.0.1:3000
 ```
 
-Open `http://127.0.0.1:5173` and select **Verify application**. The local agent explores the companion application at `/demo-target` and returns the verification result to the dashboard.
+Set `OPENAI_API_KEY` in `.env` before running the command. `VERION_OPENAI_MODEL` is optional. `--url` is optional while Verion is limited to repository analysis; with a running URL, the agent also captures browser exploration, console, network, and screenshot Evidence. The command emits `{ evidence, capsule, report }`; GPT receives only the Context Capsule.
 
-To run the local agent directly:
+To inspect discovery without GPT diagnosis:
 
 ```bash
-npm run verify:demo
+npm run discover -- --project /absolute/path/to/project
 ```
 
 ## Documentation

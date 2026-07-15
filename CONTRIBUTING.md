@@ -29,7 +29,7 @@ Ask these questions before adding anything:
 - Does this reduce developer anxiety?
 - Does this make the next action clearer?
 - Does this improve judgment, or only add more information?
-- Would the demo be weaker without it?
+- Does this make the verification loop more reliable or understandable?
 
 If the answer is no, the feature belongs in `docs/planning/NOT_BUILDING.md`.
 

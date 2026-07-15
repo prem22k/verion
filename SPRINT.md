@@ -2,21 +2,25 @@
 
 ## Shipping Goal
 
-Ship the target-agnostic local-agent foundation required for Verion to understand arbitrary React, Next.js, and Vite projects.
+Prove Verion's first target-agnostic vertical slice from discovery through a GPT-backed release report.
 
 ## Today’s Focus — 2026-07-15
 
-**P0 — Build Evidence-first verification orchestration.**
+**P0 — Complete the end-to-end verification path.**
 
-Today’s deliverable is a target-agnostic orchestrator that composes Evidence Producers and produces Context Capsules from Evidence only.
+Today’s deliverable is one `verify` command that returns normalized Evidence, a Context Capsule, and a structured release report.
 
 ## Doing
 
-- [ ] **P0 — Implement verification orchestration**  
+- [ ] **P0 — Prove the complete verification vertical slice**
   Status: Doing  
-  Dependencies: Project discovery; repository graph; local agent; Context Capsules.
+  Dependencies: Project discovery; repository graph; browser observation; Context Capsules; OpenAI API credential.
 
 ## Done
+
+- [x] **P0 — Document local GPT diagnosis configuration**
+  Status: Done
+  Dependencies: GPT diagnosis command.
 
 - [x] **P0 — Read every Markdown document in the repository**  
   Status: Done  
