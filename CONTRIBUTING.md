@@ -31,7 +31,7 @@ Ask these questions before adding anything:
 - Does this improve judgment, or only add more information?
 - Would the demo be weaker without it?
 
-If the answer is no, the feature belongs in `NOT_BUILDING.md`.
+If the answer is no, the feature belongs in `docs/planning/NOT_BUILDING.md`.
 
 ## How to Reject Unnecessary Complexity
 
