@@ -143,6 +143,46 @@ The first vertical slice must prove a developer can move from collected evidence
 
 The local agent needs an `OPENAI_API_KEY` to complete diagnosis. Missing credentials and API errors remain explicit so Verion never presents fabricated reasoning as verification.
 
+## 2026-07-15 — Local Runtime Configuration and Bounded GPT Context
+
+**Decision**
+
+Load the local `.env` file with Node's built-in environment loader when the agent starts diagnosis, expose only a key-free GPT readiness status to the dashboard, and send GPT a compact Context Capsule derived from normalized Evidence.
+
+**Reason**
+
+A `.env` file is not automatically available to a Node process. The dashboard must make diagnosis readiness observable without revealing secrets. Arbitrary repositories can also have large graphs and source inventories; a release decision needs the relevant Evidence neighborhood, not an unbounded repository dump.
+
+**Alternatives**
+
+- Require users to source `.env` manually before every command.
+- Add a third-party configuration dependency.
+- Send complete discovery and graph payloads to GPT.
+
+**Consequences**
+
+`npm run dev` and the CLI now use the configured credential after restart, while externally supplied environment variables still work. GPT receives only a bounded, redacted Capsule: project facts, selected graph neighborhood, observed browser signals, and capped source excerpts. The full Evidence set remains available to the dashboard and report.
+
+## 2026-07-15 — Explicit Local Project Connection and Quiet Watch
+
+### Decision
+
+The dashboard connects through the localhost Verion agent using an explicitly supplied project directory, optional running URL, and watch preference. The agent holds the connection in memory, debounces filesystem changes, reruns the existing Evidence-first path, and notifies the dashboard only when a new needs-attention state appears.
+
+### Why
+
+This creates a target-agnostic product path without granting a browser dashboard filesystem access or silently inspecting an unapproved target. It matches the intended experience of a quiet reviewer that interrupts only when a release decision changes.
+
+### Alternatives Considered
+
+- Keep the proof-only dashboard and require CLI use.
+- Let the browser inspect arbitrary filesystem paths directly.
+- Add persistent registrations, cloud synchronization, or operating-system notifications now.
+
+### Consequences
+
+The first connection is local and process-scoped. Restarting the agent requires reconnecting the project; persistent registrations and operating-system notifications are deferred until the verification loop proves reliable.
+
 ## Template
 
 ### Date

@@ -38,4 +38,8 @@ The verification orchestrator accepts only `EvidenceProducer` implementations. I
 
 ## Current Implementation Boundary
 
-The first complete local-agent slice is: discovery, repository graph, browser observation, normalized Evidence, Context Capsule, GPT diagnosis, and a structured release report. Security, performance, accessibility, and dashboard integration remain outside this milestone.
+The first complete local-agent slice is: discovery, repository graph, browser observation, normalized Evidence, Context Capsule, GPT diagnosis, and a structured release report. The dashboard connects through the localhost local agent to an explicitly supplied project directory and optional running URL. Security, performance, and accessibility remain outside this milestone.
+
+## Local Project Connection
+
+The local agent retains an approved connection only while it runs. When change watching is enabled, it debounces source changes and reruns the existing Evidence-first verification path. The dashboard receives local agent events and surfaces a new needs-attention state without turning routine activity into a notification stream.

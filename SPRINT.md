@@ -14,13 +14,33 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
 
 - [ ] **P0 — Prove the complete verification vertical slice**
   Status: Doing  
-  Dependencies: Project discovery; repository graph; browser observation; Context Capsules; OpenAI API credential.
+  Dependencies: Project discovery; repository graph; browser observation; Context Capsules; OpenAI API credential and available rate limit.
 
 ## Done
+
+- [x] **P0 — Connect the dashboard to a real local project**
+  Status: Done
+  Dependencies: Target-agnostic verification path; local agent server.
+
+- [x] **P0 — Make the default local command start the complete product**
+  Status: Done
+  Dependencies: Local agent server; dashboard connection flow.
+
+- [x] **P0 — Make project-path errors actionable**
+  Status: Done
+  Dependencies: Local project connection.
 
 - [x] **P0 — Document local GPT diagnosis configuration**
   Status: Done
   Dependencies: GPT diagnosis command.
+
+- [x] **P0 — Make local GPT diagnosis configuration reliable and observable**
+  Status: Done
+  Dependencies: Local agent; `.env` configuration.
+
+- [x] **P0 — Bound the GPT Context Capsule to relevant Evidence**
+  Status: Done
+  Dependencies: Evidence-first Context Capsule.
 
 - [x] **P0 — Read every Markdown document in the repository**  
   Status: Done  

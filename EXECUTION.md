@@ -31,19 +31,26 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Verified the Evidence-first orchestrator against an unrelated local project with no target URL.
 - Froze the Evidence-first architecture; no additional producers or interfaces are part of this milestone.
 - Added a tracked `.env.example` containing the required GPT diagnosis configuration and protected local `.env` files from Git.
+- Replaced the proof-only dashboard with a real localhost project-connection flow, local-agent events, Evidence-backed reports, and an opt-in debounced project watcher.
+- Validated an explicit local connection, browser Evidence collection, and Context Capsule generation through the dashboard API.
+- Made `npm run dev` start the complete local dashboard and agent, rather than a frontend-only Vite server.
+- Added clear local-path validation and `~/` expansion to the project-connection flow.
+- Made local `.env` configuration load automatically for the local agent and CLI, with a key-free dashboard readiness status.
+- Hardened the GPT diagnosis boundary with a timeout, safe provider error classification, structured-output validation, and `store: false` for diagnosis requests.
+- Bounded Context Capsules to the relevant Evidence neighborhood and capped source excerpts, while retaining the complete Evidence set for dashboard review.
 
 ## In-Progress Work
 
-- Completing and validating the existing end-to-end local-agent path, including capsule-only GPT diagnosis and its structured release report.
+- Validating the live GPT-backed report and watcher behavior against an external project target.
 
 ## Blockers
 
-- `OPENAI_API_KEY` is not configured in the current environment, so the final live GPT diagnosis and structured release report cannot yet be verified against the Responses API.
+- The configured OpenAI credential and request path were verified; the follow-up live diagnosis was rate-limited before a report could be returned. Retry after the provider limit clears.
 
 ## Next Steps
 
-1. Validate `verion verify` against a running target with `OPENAI_API_KEY` configured.
-2. Connect the proven vertical-slice result to the dashboard.
+1. Validate the dashboard report against a running target with `OPENAI_API_KEY` configured.
+2. Verify watcher behavior against an external project target and release recommendation changes.
 3. Improve individual producers only after the vertical slice is reliable.
 
 ## Important Decisions
