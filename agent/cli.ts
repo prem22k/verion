@@ -1,12 +1,8 @@
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { createContextCapsule } from './core/contextCapsule'
-import { diagnoseContextCapsule } from './core/gptDiagnosis'
 import type { Evidence } from './core/types'
-import { RepositoryDiscoveryProducer } from './evidence/repositoryDiscoveryProducer'
-import { RepositoryGraphProducer } from './evidence/repositoryGraphProducer'
-import { BrowserObservationProducer } from './evidence/browserObservationProducer'
-import { VerificationOrchestrator } from './orchestration/verificationOrchestrator'
+import { runProjectVerification } from './runProjectVerification'
 
 function optionValue(args: string[], option: string): string | undefined {
   const index = args.indexOf(option)
@@ -19,12 +15,8 @@ async function main() {
   if (!project) throw new Error('Missing required --project path.')
 
   const targetUrl = optionValue(args, '--url')
-  const producers = [
-    new RepositoryDiscoveryProducer(),
-    new RepositoryGraphProducer(),
-    new BrowserObservationProducer()
-  ]
-  const evidence = await new VerificationOrchestrator(producers).verify({ projectPath: resolve(project), targetUrl })
+  const result = await runProjectVerification({ projectPath: resolve(project), targetUrl, diagnose: command === 'verify' })
+  const { evidence } = result
   if (command === 'discover') {
     process.stdout.write(`${JSON.stringify({ evidence }, null, 2)}\n`)
     return
@@ -38,18 +30,8 @@ async function main() {
     return
   }
   if (command === 'verify') {
-    const capsule = await createContextCapsule(evidence)
-    try {
-      const report = await diagnoseContextCapsule(capsule)
-      process.stdout.write(`${JSON.stringify({ evidence, capsule, report }, null, 2)}\n`)
-    } catch (error: unknown) {
-      process.stdout.write(`${JSON.stringify({
-        evidence,
-        capsule,
-        diagnosisUnavailable: error instanceof Error ? error.message : 'GPT diagnosis could not complete.'
-      }, null, 2)}\n`)
-      process.exitCode = 1
-    }
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+    if (result.diagnosisUnavailable) process.exitCode = 1
     return
   }
   throw new Error('Usage: verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path> | verion verify --project <path> [--url <running-app-url>]')
