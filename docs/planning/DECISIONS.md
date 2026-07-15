@@ -123,6 +123,26 @@ This keeps tool integrations modular, preserves reviewability, and ensures GPT r
 
 Producer adapters require upfront normalization work, but adding or replacing a tool no longer changes the orchestration or Context Capsule boundary.
 
+## 2026-07-15 — Capsule-Only GPT Diagnosis
+
+### Decision
+
+GPT diagnosis consumes the completed Context Capsule and returns one structured release report with an evidence-cited recommendation. It has no direct access to browsers, scanners, repository discovery, or graph construction.
+
+### Why
+
+The first vertical slice must prove a developer can move from collected evidence to a concise, reviewable release decision without making GPT an uncontrolled orchestrator.
+
+### Alternatives Considered
+
+- Let GPT invoke verification tools directly.
+- Generate an unstructured diagnosis and parse it heuristically.
+- Produce a synthetic local diagnosis when GPT credentials are unavailable.
+
+### Consequences
+
+The local agent needs an `OPENAI_API_KEY` to complete diagnosis. Missing credentials and API errors remain explicit so Verion never presents fabricated reasoning as verification.
+
 ## Template
 
 ### Date

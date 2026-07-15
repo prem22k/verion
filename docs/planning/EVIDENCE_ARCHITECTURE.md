@@ -21,6 +21,7 @@ Each `Evidence` object has a stable identity, producer, kind, timestamp, concise
 
 - `repository-discovery` → `repository_discovery`
 - `repository-graph` → `repository_graph`
+- `browser-observation` → `browser_exploration`, `console_log`, `network_log`, and `screenshot`
 
 ## Planned Producers
 
@@ -38,6 +39,8 @@ The verification orchestrator receives an ordered list of `EvidenceProducer` ins
 ## Context Capsules and GPT
 
 Context Capsules are assembled solely from Evidence plus graph-linked source excerpts. GPT receives a Context Capsule only. It never receives direct tool connections, raw scanner APIs, or browser automation controls.
+
+GPT returns one structured release report: recommendation, concise diagnosis, cited Evidence IDs, and next action. If the capsule is insufficient or GPT is unavailable, Verion reports that state explicitly rather than inventing a diagnosis.
 
 ## Presentation
 

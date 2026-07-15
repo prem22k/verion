@@ -36,6 +36,6 @@ Every Verion subsystem is an Evidence Producer or an Evidence Consumer. Discover
 
 The verification orchestrator accepts only `EvidenceProducer` implementations. It has no knowledge of Playwright, ServX, Semgrep, or any other tool. The Context Capsule consumes Evidence only. Any GPT integration receives a completed Context Capsule only and never calls a browser, scanner, or graph builder directly.
 
-## First Implementation Boundary
+## Current Implementation Boundary
 
-This foundation includes static discovery and graph construction only. It does not add browser exploration, security scanning, Context Capsule generation, or dashboard changes until their preceding layer is stable.
+The first complete local-agent slice is: discovery, repository graph, browser observation, normalized Evidence, Context Capsule, GPT diagnosis, and a structured release report. Security, performance, accessibility, and dashboard integration remain outside this milestone.
