@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx server.ts",
     "dev:verion": "tsx server.ts",
+    "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "verify:demo": "tsx agent/run-verification.ts",
