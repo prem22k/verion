@@ -38,10 +38,14 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Made local `.env` configuration load automatically for the local agent and CLI, with a key-free dashboard readiness status.
 - Hardened the GPT diagnosis boundary with a timeout, safe provider error classification, structured-output validation, and `store: false` for diagnosis requests.
 - Bounded Context Capsules to the relevant Evidence neighborhood and capped source excerpts, while retaining the complete Evidence set for dashboard review.
+- Replaced browser project-path and URL configuration with launch-directory project discovery through the `verion` executable.
+- Added loopback-only conventional local-app detection with an advanced `verion --url <address>` override.
+- Validated automatic discovery from both Verion and the unrelated ServX Attack Paths project.
+- Redesigned the full customer-facing product journey in `.ulpi/design/release-journey.md`, from Verion's browser arrival through local memory, review, repair, rerun, and ready-to-ship confirmation; implementation remains intentionally deferred.
 
 ## In-Progress Work
 
-- Validating the live GPT-backed report and watcher behavior against an external project target.
+- Awaiting approval to implement the redesigned customer-facing release journey before adding backend architecture.
 
 ## Blockers
 
@@ -49,9 +53,9 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 
 ## Next Steps
 
-1. Validate the dashboard report against a running target with `OPENAI_API_KEY` configured.
-2. Verify watcher behavior against an external project target and release recommendation changes.
-3. Improve individual producers only after the vertical slice is reliable.
+1. Implement the approved release-journey UI and translate existing verification events into customer-language review events.
+2. Validate the dashboard report against a running target with `OPENAI_API_KEY` configured.
+3. Verify watcher behavior against an external project target and release recommendation changes.
 
 ## Important Decisions
 

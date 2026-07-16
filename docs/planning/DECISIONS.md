@@ -163,11 +163,71 @@ A `.env` file is not automatically available to a Node process. The dashboard mu
 
 `npm run dev` and the CLI now use the configured credential after restart, while externally supplied environment variables still work. GPT receives only a bounded, redacted Capsule: project facts, selected graph neighborhood, observed browser signals, and capped source excerpts. The full Evidence set remains available to the dashboard and report.
 
-## 2026-07-15 — Explicit Local Project Connection and Quiet Watch
+## 2026-07-16 — Launch-Directory Project Connection
+
+**Decision**
+
+Verion is launched from the project it verifies. The local agent treats its current working directory as the approved project scope, connects it before the dashboard opens, and attempts to detect a conventional loopback development server. Project paths and URLs are removed from the normal dashboard flow; `--url` remains an advanced CLI override.
+
+**Reason**
+
+A browser cannot select a real local project path for a local agent without awkward or misleading configuration. The developer's terminal location is the clearest explicit scope decision and makes the product feel like a verification layer rather than a configuration form.
+
+**Alternatives**
+
+- Keep browser text fields for filesystem paths and URLs.
+- Build a browser file-picker integration that cannot pass a trusted native path to the local agent.
+- Probe arbitrary network addresses or require every developer to supply a URL.
+
+**Consequences**
+
+The normal start command is `verion` in the application root. Verion observes a small set of loopback-only conventional development ports and excludes its own dashboard port. A user who needs a non-standard address uses `verion --url <address>`. To verify a different project, start Verion from that project instead of modifying browser state.
+
+## 2026-07-16 — Customer-Facing Release Journey
+
+**Decision**
+
+Keep the Evidence-first architecture internal. The dashboard is organized around one emotional journey: uncertainty, live review, grouped conclusion, release recommendation, Fix Packet for Codex, and verification after repair.
+
+**Reason**
+
+Developers should experience Verion as an experienced staff engineer making a clear release call, not as an orchestration engine, a scanner console, or a collection of internal subsystems. The moment when several observations converge into one diagnosis is the product's primary demo moment.
+
+**Alternatives**
+
+- Surface Evidence Producers, repository graphs, Context Capsules, and individual tools as first-class dashboard concepts.
+- Build a generic multi-agent activity visualizer.
+- Show many ungrouped warnings and leave the developer to decide whether to ship.
+
+**Consequences**
+
+Internal contracts remain unchanged. Future UI and event work must translate internal data into plain-language review events and one grouped conclusion. The dashboard may reveal supporting proof, but never implementation vocabulary.
+
+## 2026-07-16 — Verion as a Product Relationship
+
+**Decision**
+
+Design the first-use and returning-user experience as one continuous relationship: Verion arrives, introduces itself, learns the project aloud, remembers what it learned, reviews on request, gives one release decision, prepares a focused repair with Codex, and proves the repair through a second review.
+
+**Reason**
+
+The product must earn affection before it earns trust. A developer should feel within the first minute that Verion understands their application and is reducing uncertainty, rather than presenting a technical tool that must be operated or configured.
+
+**Alternatives**
+
+- Open directly into a generic dashboard or technical project summary.
+- Treat project learning as invisible setup.
+- Use a heavy decorative 3D mascot or animated agent swarm to simulate intelligence.
+
+**Consequences**
+
+The product experience is specified in `.ulpi/design/release-journey.md`. The lightweight Verion presence and review trail communicate attention and judgment. Every visible screen must preserve the emotional sequence and use product language only.
+
+## 2026-07-15 — Explicit Local Project Connection and Quiet Watch (Superseded)
 
 ### Decision
 
-The dashboard connects through the localhost Verion agent using an explicitly supplied project directory, optional running URL, and watch preference. The agent holds the connection in memory, debounces filesystem changes, reruns the existing Evidence-first path, and notifies the dashboard only when a new needs-attention state appears.
+This initial dashboard-form approach was superseded on 2026-07-16 by **Launch-Directory Project Connection**. The agent still holds the connection in memory, debounces filesystem changes, reruns the existing Evidence-first path, and notifies the dashboard only when a new needs-attention state appears.
 
 ### Why
 

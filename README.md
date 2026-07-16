@@ -32,12 +32,12 @@ The local-agent vertical slice is in progress: Verion discovers a local project,
 npm install
 npx playwright install chromium
 cp .env.example .env
-npm run verify -- --project /absolute/path/to/project --url http://127.0.0.1:3000
+npm run dev
 ```
 
-Set `OPENAI_API_KEY` in `.env` before running the command. Verion loads `.env` when its local agent or CLI starts, so restart `npm run dev` after changing it. `VERION_OPENAI_MODEL` is optional. `--url` is optional while Verion is limited to repository analysis; with a running URL, the agent also captures browser exploration, console, network, and screenshot Evidence. The command emits `{ evidence, capsule, report }`; GPT receives only the Context Capsule.
+For packaged use, run `verion` from the root of the application you want to verify. The launch directory is the approved project scope; the dashboard never asks you to paste a filesystem path. Verion automatically looks for a conventional localhost development server. If it cannot find one, use the advanced fallback: `verion --url http://127.0.0.1:3000`.
 
-To use the local dashboard, run `npm run dev`, open `http://127.0.0.1:5173`, and connect the project directory and optional running URL. Enable watching to verify approved source changes after a short debounce. The connection remains local and lasts only while the agent is running.
+When developing Verion itself, `npm run dev` starts the agent against the current directory. Set `OPENAI_API_KEY` in `.env` before running the command. Verion loads `.env` when its local agent or CLI starts, so restart it after changing the file. `VERION_OPENAI_MODEL` is optional. The command emits `{ evidence, capsule, report }`; GPT receives only the Context Capsule.
 
 To inspect discovery without GPT diagnosis:
 

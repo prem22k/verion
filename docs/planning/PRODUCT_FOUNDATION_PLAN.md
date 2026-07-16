@@ -8,7 +8,7 @@ Build a target-agnostic local agent for arbitrary React, Next.js, and Vite proje
 
 ## Delivery Order
 
-1. **Project discovery** — accept a local project directory, identify its framework, package manager, scripts, entry points, and candidate routes without hardcoded application knowledge.
+1. **Project discovery** — inspect the directory from which the local agent was launched, identify its framework, package manager, scripts, entry points, and candidate routes without hardcoded application knowledge.
 2. **Repository graph** — represent files, relative imports, route ownership, and framework entry points in one inspectable graph.
 3. **Local agent** — expose discovery and graph creation through a local CLI with structured output.
 4. **Context Capsules** — turn a selected verification finding plus graph neighborhood into focused, source-backed repair context.
@@ -17,14 +17,15 @@ Build a target-agnostic local agent for arbitrary React, Next.js, and Vite proje
 ## Initial Local-Agent Contract
 
 ```text
+verion
 verion discover --project <absolute-or-relative-path>
 ```
 
-The command emits structured project metadata and a repository graph. It must work without a running target URL, credentials, a demo fixture, or application-specific selectors.
+`verion` is the normal product start command: its current directory becomes the approved project scope. The explicit `discover --project` command remains a CLI inspection tool. Both emit structured project metadata and a repository graph without a running target URL, credentials, a demo fixture, or application-specific selectors.
 
 ## Product Constraints
 
-- The user supplies the project directory and, later, an optional running application URL.
+- The developer's launch directory is the approved project scope. Verion detects a conventional loopback application URL when available; `--url` is an advanced override.
 - The agent discovers framework conventions; it does not assume a route, feature, component, or defect.
 - Browser exploration begins only after discovery supplies route and entry-point candidates.
 - The graph and capsules are evidence products, not generic IDE indexes or raw scanner output.
@@ -38,7 +39,7 @@ The verification orchestrator accepts only `EvidenceProducer` implementations. I
 
 ## Current Implementation Boundary
 
-The first complete local-agent slice is: discovery, repository graph, browser observation, normalized Evidence, Context Capsule, GPT diagnosis, and a structured release report. The dashboard connects through the localhost local agent to an explicitly supplied project directory and optional running URL. Security, performance, and accessibility remain outside this milestone.
+The first complete local-agent slice is: discovery, repository graph, browser observation, normalized Evidence, Context Capsule, GPT diagnosis, and a structured release report. The dashboard opens already connected to the project from which the localhost agent was started. Security, performance, and accessibility remain outside this milestone.
 
 ## Local Project Connection
 

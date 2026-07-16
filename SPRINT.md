@@ -4,7 +4,7 @@
 
 Prove Verion's first target-agnostic vertical slice from discovery through a GPT-backed release report.
 
-## Today’s Focus — 2026-07-15
+## Today’s Focus — 2026-07-16
 
 **P0 — Complete the end-to-end verification path.**
 
@@ -17,6 +17,14 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
   Dependencies: Project discovery; repository graph; browser observation; Context Capsules; OpenAI API credential and available rate limit.
 
 ## Done
+
+- [x] **P0 — Redesign the customer-facing verification journey before further backend work**
+  Status: Done
+  Dependencies: Locked design language; MVP emotional journey.
+
+- [x] **P0 — Define the complete first-use-to-ready-to-ship product journey**
+  Status: Done
+  Dependencies: Locked design language; customer-facing verification journey.
 
 - [x] **P0 — Connect the dashboard to a real local project**
   Status: Done
@@ -41,6 +49,10 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
 - [x] **P0 — Bound the GPT Context Capsule to relevant Evidence**
   Status: Done
   Dependencies: Evidence-first Context Capsule.
+
+- [x] **P0 — Remove browser project configuration from the normal launch path**
+  Status: Done
+  Dependencies: Local agent; target-agnostic project discovery.
 
 - [x] **P0 — Read every Markdown document in the repository**  
   Status: Done  
