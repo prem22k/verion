@@ -5,14 +5,14 @@ import { homedir } from 'node:os'
 import { dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer as createViteServer } from 'vite'
-import { discoverProject } from './agent/core/projectDiscovery'
+import { completeProjectOnboarding, learnProject, type LearnedProject } from './agent/core/projectMemory'
 import { getGptDiagnosisStatus } from './agent/core/runtimeConfig'
-import type { Evidence, ProjectDiscovery, ProjectVerificationResult, ReleaseRecommendation } from './agent/core/types'
+import type { Evidence, ProjectDiscovery, ProjectUnderstanding, ProjectVerificationResult, ReleaseRecommendation } from './agent/core/types'
 import { runProjectVerification } from './agent/runProjectVerification'
 
 const host = '127.0.0.1'
 const changeDebounceMs = 3_000
-const ignoredPathParts = new Set(['.git', '.next', '.nuxt', '.output', '.vercel', 'artifacts', 'build', 'coverage', 'dist', 'node_modules', 'out', 'public'])
+const ignoredPathParts = new Set(['.git', '.next', '.nuxt', '.output', '.vercel', '.verion', 'artifacts', 'build', 'coverage', 'dist', 'node_modules', 'out', 'public'])
 const watchedExtensions = new Set(['.cjs', '.cts', '.css', '.html', '.js', '.json', '.jsx', '.mjs', '.mts', '.ts', '.tsx'])
 const localAppPorts = [3000, 3001, 4173, 4200, 4321, 5174, 8000, 8080]
 const dashboardRoot = dirname(fileURLToPath(import.meta.url))
@@ -30,6 +30,12 @@ type ConnectedProject = {
   watchChanges: boolean
   connectedAt: string
   discovery: Pick<ProjectDiscovery, 'framework' | 'packageManager' | 'packageName' | 'entryPoints' | 'routes'>
+  understanding: ProjectUnderstanding
+  memory: {
+    onboardingRequired: boolean
+    learnedAt: string
+    state: 'first_run' | 'remembered' | 'updated'
+  }
 }
 
 type AgentEvent =
@@ -76,6 +82,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     verificationRunning = true
     broadcast({ type: 'verification_started', trigger })
     try {
+      await refreshProjectUnderstanding()
       await detectTargetForConnectedProject()
       const previousRecommendation = lastRecommendation
       const result = await runProjectVerification({
@@ -126,21 +133,13 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
   }
 
   const connectProject = async (projectPath: string, targetUrl?: string, watchChanges = true) => {
-    const discovery = await discoverConnectedProject(projectPath)
+    const learned = await learnConnectedProject(projectPath)
     const resolvedTargetUrl = targetUrl ?? await detectLocalTargetUrl(port)
-    connection = {
-      projectPath: discovery.projectRoot,
+    connection = connectedProjectFromLearning(learned, {
       targetUrl: resolvedTargetUrl,
       watchChanges,
-      connectedAt: new Date().toISOString(),
-      discovery: {
-        framework: discovery.framework,
-        packageManager: discovery.packageManager,
-        packageName: discovery.packageName,
-        entryPoints: discovery.entryPoints,
-        routes: discovery.routes
-      }
-    }
+      connectedAt: new Date().toISOString()
+    })
     lastResult = undefined
     lastRecommendation = undefined
     startWatcher()
@@ -153,6 +152,13 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     const targetUrl = await detectLocalTargetUrl(port)
     if (!targetUrl) return
     connection = { ...connection, targetUrl }
+    broadcast({ type: 'connected', connection })
+  }
+
+  const refreshProjectUnderstanding = async () => {
+    if (!connection) return
+    const learned = await learnConnectedProject(connection.projectPath)
+    connection = connectedProjectFromLearning(learned, connection)
     broadcast({ type: 'connected', connection })
   }
 
@@ -194,6 +200,18 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
         lastRecommendation = undefined
         broadcast({ type: 'disconnected' })
         return sendJson(response, 200, { connection: null })
+      }
+
+      if (request.method === 'POST' && request.url === '/api/projects/onboarding-complete') {
+        if (!connection) throw new Error('Start Verion from a project before completing onboarding.')
+        const memory = await completeProjectOnboarding(connection.projectPath)
+        if (!memory) throw new Error('Project memory is unavailable. Restart Verion to learn this project again.')
+        connection = {
+          ...connection,
+          memory: { ...connection.memory, onboardingRequired: false, learnedAt: memory.updatedAt }
+        }
+        broadcast({ type: 'connected', connection })
+        return sendJson(response, 200, { connection })
       }
 
       if (request.method === 'POST' && request.url === '/api/verify') {
@@ -285,15 +303,38 @@ function readOptionalTargetUrl(body: Record<string, unknown>): string | undefine
   return url.toString()
 }
 
-async function discoverConnectedProject(projectPath: string) {
+async function learnConnectedProject(projectPath: string): Promise<LearnedProject> {
   try {
-    return await discoverProject(resolveHomePath(projectPath))
+    return await learnProject(resolveHomePath(projectPath))
   } catch (error: unknown) {
     const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
     if (code === 'ENOENT') {
       throw new Error(`Project directory does not exist: ${projectPath}. Enter its full path, for example /home/your-name/projects/app, or use ~/projects/app.`)
     }
     throw error
+  }
+}
+
+function connectedProjectFromLearning(learned: LearnedProject, connection: Pick<ConnectedProject, 'targetUrl' | 'watchChanges' | 'connectedAt'>): ConnectedProject {
+  const { discovery, memory, memoryState } = learned
+  return {
+    projectPath: discovery.projectRoot,
+    targetUrl: connection.targetUrl,
+    watchChanges: connection.watchChanges,
+    connectedAt: connection.connectedAt,
+    discovery: {
+      framework: discovery.framework,
+      packageManager: discovery.packageManager,
+      packageName: discovery.packageName,
+      entryPoints: discovery.entryPoints,
+      routes: discovery.routes
+    },
+    understanding: memory.understanding,
+    memory: {
+      onboardingRequired: !memory.onboardingCompletedAt,
+      learnedAt: memory.updatedAt,
+      state: memoryState
+    }
   }
 }
 

@@ -63,6 +63,10 @@ input::placeholder { color: #8c9a9b; }
 .form-error { margin: 0; color: #a13e2a; line-height: 1.45; }
 
 .project-summary { align-items: center; }
+.project-summary__copy { max-width: 56ch; margin: 0; color: #334849; font-size: 18px; line-height: 1.55; }
+.project-highlights { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.project-highlights span { border: 1px solid #c5d0d0; border-radius: 999px; padding: 7px 10px; color: #334849; font-size: 13px; }
+.project-memory { margin: 18px 0 0; color: #5b6d6f; font-size: 13px; }
 .project-main > code { display: block; max-width: 680px; overflow: hidden; color: #5b6d6f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .project-main dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 28px 0 0; }
 .project-main dl div { border-top: 1px solid #c5d0d0; padding-top: 10px; }
@@ -103,6 +107,36 @@ pre { max-height: 320px; overflow: auto; margin: 0 0 16px; padding: 14px; color:
 .attention-notice p { margin: 4px 0 0; line-height: 1.45; }
 .attention-notice button { width: 32px; height: 32px; border: 0; color: inherit; background: transparent; font-size: 24px; line-height: 1; }
 
+.first-run { display: grid; grid-template-columns: minmax(220px, .75fr) minmax(0, 1.25fr); align-items: center; gap: clamp(38px, 8vw, 120px); min-height: calc(100vh - 84px); padding: 58px 4vw 90px; }
+.first-run__presence { display: grid; place-items: center; min-height: 260px; }
+.verion-presence { width: min(100%, 290px); color: #0c6b72; filter: drop-shadow(0 18px 35px rgba(12, 107, 114, .13)); }
+.verion-presence svg { display: block; width: 100%; overflow: visible; }
+.verion-presence__orbit { fill: rgba(12, 107, 114, .05); stroke: currentColor; stroke-width: 1.4; stroke-dasharray: 3 8; }
+.verion-presence__core { fill: currentColor; transform-origin: 90px 90px; }
+.verion-presence__spark { fill: #d0882c; transform-origin: 127px 54px; }
+.verion-presence--hello .verion-presence__core { animation: verion-arrive 900ms cubic-bezier(.2,.8,.2,1) both; }
+.verion-presence--learning .verion-presence__orbit { animation: verion-orbit 4s linear infinite; transform-origin: 90px 90px; }
+.verion-presence--learning .verion-presence__core { animation: verion-breathe 2.2s ease-in-out infinite; }
+.verion-presence--learning .verion-presence__spark { animation: verion-spark 1.15s ease-in-out infinite; }
+.verion-presence--ready { color: #14734c; }
+.verion-presence--ready .verion-presence__spark { fill: #14734c; }
+.first-run__content { max-width: 710px; }
+.first-run__lead { max-width: 52ch; margin: 18px 0 0; color: #5b6d6f; font-size: 18px; line-height: 1.6; }
+.learning-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 32px 0 0; padding: 0; list-style: none; }
+.learning-facts li { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 10px 0; border-bottom: 1px solid #d7e0e0; color: #334849; font-size: 14px; animation: learning-fact-in 300ms ease both; }
+.fact-check { display: grid; place-items: center; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; color: #fcfdfd; background: #14734c; font-size: 12px; font-weight: 800; }
+.technology-icon { display: grid; place-items: center; flex: 0 0 auto; width: 22px; height: 22px; border: 1px solid #9fb6b8; border-radius: 6px; color: #0c6b72; background: #edf4f3; font-size: 9px; font-weight: 850; letter-spacing: -.04em; }
+.technology-icon--service { color: #765200; background: #fbf3df; border-color: #ddc783; }
+.technology-icon--database { color: #66496e; background: #f5eefa; border-color: #cfb7dd; }
+.first-run__finish { display: grid; gap: 18px; margin-top: 32px; padding-top: 20px; border-top: 1px solid #c5d0d0; }
+.first-run__finish p { max-width: 54ch; margin: 0; color: #5b6d6f; line-height: 1.55; }
+
+@keyframes verion-arrive { from { opacity: 0; transform: translateY(12px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes verion-orbit { to { transform: rotate(360deg); } }
+@keyframes verion-breathe { 50% { transform: scale(1.035); } }
+@keyframes verion-spark { 50% { opacity: .42; transform: scale(.7); } }
+@keyframes learning-fact-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
 @media (max-width: 760px) {
   .app-shell { width: min(100% - 28px, 1120px); padding-top: 18px; }
   .topbar > p { display: none; }
@@ -117,9 +151,13 @@ pre { max-height: 320px; overflow: auto; margin: 0 0 16px; padding: 14px; color:
   .report-heading { display: grid; }
   summary { display: grid; gap: 4px; }
   summary span { text-align: left; }
+  .first-run { grid-template-columns: 1fr; align-content: center; gap: 26px; min-height: calc(100vh - 65px); padding: 34px 0 60px; }
+  .first-run__presence { min-height: 160px; }
+  .verion-presence { width: 190px; }
+  .learning-facts { grid-template-columns: 1fr; }
 }
 
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }
 
 @media (prefers-color-scheme: dark) {
   :root { color: #e4eeee; background: #142123; }
@@ -129,6 +167,13 @@ pre { max-height: 320px; overflow: auto; margin: 0 0 16px; padding: 14px; color:
   input[type="url"], input:not([type]) { border-color: #456064; color: #e4eeee; background: #1b2b2d; }
   .watch-option, pre { background: #1b2b2d; }
   .report-diagnosis, .report-grid > div > p:last-child, pre { color: #d0dddd; }
+  .project-summary__copy, .project-highlights span, .learning-facts li { color: #d0dddd; }
+  .project-highlights span, .learning-facts li, .first-run__finish { border-color: #385052; }
+  .project-memory, .first-run__lead, .first-run__finish p { color: #aec0c1; }
+  .technology-icon { border-color: #4c7679; color: #9cdddc; background: #1b3638; }
+  .technology-icon--service { color: #f0d58a; border-color: #806e37; background: #3a3421; }
+  .technology-icon--database { color: #dab9ea; border-color: #6f5777; background: #302437; }
+  .verion-presence__orbit { fill: rgba(112, 211, 210, .05); }
   .attention-notice { color: #ffd7cf; background: #3b2420; }
 }
 
