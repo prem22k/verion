@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { chromium } from 'playwright'
 import { startVerionServer } from '../server'
 
-const server = await startVerionServer(4180)
+const server = await startVerionServer({ port: 4180 })
 const browser = await chromium.launch({ headless: true })
 
 try {

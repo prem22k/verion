@@ -39,6 +39,12 @@ h2 { margin-bottom: 12px; font-family: ui-rounded, "Avenir Next", system-ui, san
 .connection-form { display: grid; max-width: 680px; gap: 20px; }
 .form-heading { margin-bottom: 8px; }
 .form-heading p:last-child { max-width: 56ch; margin-bottom: 0; color: #5b6d6f; line-height: 1.55; }
+.launch-command { display: block; width: fit-content; border-left: 3px solid #0c6b72; padding: 14px 18px; color: #1f3031; background: #e9efef; font: 700 16px ui-monospace, "SFMono-Regular", monospace; }
+.launch-copy { max-width: 58ch; margin: 0; color: #5b6d6f; line-height: 1.55; }
+.launch-advanced { max-width: 58ch; margin-top: 4px; }
+.launch-advanced summary { padding: 8px 0; color: #5b6d6f; font-size: 13px; }
+.launch-advanced p { margin: 0 0 12px; color: #5b6d6f; line-height: 1.5; }
+.launch-advanced p code { color: #1f3031; font-size: 12px; }
 label { display: grid; gap: 8px; color: #1f3031; font-size: 14px; font-weight: 650; }
 label > span { color: #8c9a9b; font-size: 12px; font-weight: 500; }
 label > small { color: #5b6d6f; font-size: 12px; font-weight: 400; line-height: 1.4; }
@@ -117,7 +123,7 @@ pre { max-height: 320px; overflow: auto; margin: 0 0 16px; padding: 14px; color:
 
 @media (prefers-color-scheme: dark) {
   :root { color: #e4eeee; background: #142123; }
-  .brand, label, .watch-option span, dd, .evidence-list strong, summary code { color: #e4eeee; }
+  .brand, label, .watch-option span, dd, .evidence-list strong, summary code, .launch-command, .launch-advanced p code { color: #e4eeee; }
   .topbar, .agent-status, .intro-copy, .form-heading p:last-child, label > small, .watch-option small, .project-main > code, .text-button, .report-empty, .muted, .evidence-list code, summary span { color: #aec0c1; }
   .intro, .agent-status, .workspace, .project-main dl div, .report-grid, details, details:last-child { border-color: #385052; }
   input[type="url"], input:not([type]) { border-color: #456064; color: #e4eeee; background: #1b2b2d; }

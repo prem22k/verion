@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type ProjectRoute = { path: string; file: string }
 
@@ -55,9 +55,6 @@ const initialStatus: Status = { tone: 'quiet', message: 'Connect a local project
 
 export function App() {
   const [connection, setConnection] = useState<Connection | undefined>()
-  const [projectPath, setProjectPath] = useState('')
-  const [targetUrl, setTargetUrl] = useState('')
-  const [watchChanges, setWatchChanges] = useState(true)
   const [result, setResult] = useState<VerificationResult | undefined>()
   const [status, setStatus] = useState<Status>(initialStatus)
   const [error, setError] = useState<string | undefined>()
@@ -72,9 +69,6 @@ export function App() {
       const event = JSON.parse(message.data) as AgentEvent
       if (event.type === 'connected') {
         setConnection(event.connection)
-        setProjectPath(event.connection.projectPath)
-        setTargetUrl(event.connection.targetUrl ?? '')
-        setWatchChanges(event.connection.watchChanges)
         setStatus({ tone: 'quiet', message: event.connection.watchChanges ? 'Watching approved project changes.' : 'Project connected. Watching is off.' })
       }
       if (event.type === 'disconnected') {
@@ -117,32 +111,11 @@ export function App() {
       if (!agent.gptDiagnosis.configured) setStatus({ tone: 'warning', message: agent.gptDiagnosis.message ?? 'GPT diagnosis needs configuration.' })
       if (!data.connection) return
       setConnection(data.connection)
-      setProjectPath(data.connection.projectPath)
-      setTargetUrl(data.connection.targetUrl ?? '')
-      setWatchChanges(data.connection.watchChanges)
       setStatus(agent.gptDiagnosis.configured
         ? { tone: 'quiet', message: data.connection.watchChanges ? 'Watching approved project changes.' : 'Project connected. Watching is off.' }
         : { tone: 'warning', message: agent.gptDiagnosis.message ?? 'GPT diagnosis needs configuration.' })
     } catch {
-      setStatus({ tone: 'warning', message: 'Local agent is unavailable. Start Verion with npm run dev:verion.' })
-    }
-  }
-
-  async function connectProject(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(undefined)
-    setStatus({ tone: 'working', message: 'Understanding the local project.' })
-    try {
-      const data = await requestJson<{ connection: Connection }>('/api/projects/connect', {
-        method: 'POST',
-        body: JSON.stringify({ projectPath, targetUrl: targetUrl || undefined, watchChanges })
-      })
-      setConnection(data.connection)
-      setResult(undefined)
-    } catch (reason: unknown) {
-      const message = reason instanceof Error ? reason.message : 'Project connection could not complete.'
-      setError(message)
-      setStatus({ tone: 'danger', message: 'Project connection needs attention.' })
+      setStatus({ tone: 'warning', message: 'Local agent is unavailable. Start Verion from the project terminal, then reload this page.' })
     }
   }
 
@@ -164,9 +137,13 @@ export function App() {
     }
   }
 
-  async function changeProject() {
+  async function verifyAnotherProject() {
     try {
       await requestJson<{ connection: null }>('/api/projects/disconnect', { method: 'POST' })
+      setConnection(undefined)
+      setResult(undefined)
+      setError(undefined)
+      setStatus({ tone: 'quiet', message: 'Start Verion from the other project directory.' })
     } catch {
       setConnection(undefined)
       setResult(undefined)
@@ -185,7 +162,7 @@ export function App() {
     <section className="intro" id="top">
       <div>
         <p className="section-label">Release confidence</p>
-        <h1>{connection ? 'Your project has a careful observer.' : 'Connect the software you want to trust.'}</h1>
+        <h1>{connection ? 'Your project has a careful observer.' : 'Verification starts in your project.'}</h1>
       </div>
       <p className="intro-copy">Verion reads approved local context, observes the running product, and returns one evidence-backed release decision.</p>
     </section>
@@ -194,52 +171,33 @@ export function App() {
 
     {notice && <aside className="attention-notice" role="alert"><div><strong>Release attention required</strong><p>{notice}</p></div><button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss notification">×</button></aside>}
 
-    {!connection ? <ConnectionForm
-      projectPath={projectPath}
-      targetUrl={targetUrl}
-      watchChanges={watchChanges}
-      error={error}
-      onProjectPathChange={setProjectPath}
-      onTargetUrlChange={setTargetUrl}
-      onWatchChangesChange={setWatchChanges}
-      onSubmit={connectProject}
-    /> : <>
-      <ConnectionSummary connection={connection} gptDiagnosis={gptDiagnosis} isVerifying={isVerifying} onVerify={verifyNow} onChangeProject={() => void changeProject()} />
+    {!connection ? <AgentLaunchNotice error={error} /> : <>
+      <ConnectionSummary connection={connection} gptDiagnosis={gptDiagnosis} isVerifying={isVerifying} onVerify={verifyNow} onVerifyAnotherProject={() => void verifyAnotherProject()} />
       {error && <p className="form-error" role="alert">{error}</p>}
       <Report result={result} />
     </>}
   </main>
 }
 
-function ConnectionForm({ projectPath, targetUrl, watchChanges, error, onProjectPathChange, onTargetUrlChange, onWatchChangesChange, onSubmit }: {
-  projectPath: string
-  targetUrl: string
-  watchChanges: boolean
-  error?: string
-  onProjectPathChange: (value: string) => void
-  onTargetUrlChange: (value: string) => void
-  onWatchChangesChange: (value: boolean) => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
-}) {
+function AgentLaunchNotice({ error }: { error?: string }) {
   return <section className="workspace connection-workspace" aria-labelledby="connection-title">
     <div className="evidence-rail" aria-hidden="true"><span>Connect</span><i /><span>Observe</span><i /><span>Decide</span></div>
-    <form className="connection-form" onSubmit={onSubmit} noValidate>
-      <div className="form-heading"><p className="section-label">Project scope</p><h2 id="connection-title">Start with the local project.</h2><p>Verion only reads the directory and visits the URL you approve here.</p></div>
-      <label>Project directory<input value={projectPath} onChange={(event) => onProjectPathChange(event.target.value)} placeholder="~/projects/app" required aria-invalid={Boolean(error)} aria-describedby="project-path-help connection-error" /><small id="project-path-help">Use the full local path or `~/…`. The browser cannot choose a folder for the local agent.</small></label>
-      <label>Running app URL <span>optional</span><input type="url" value={targetUrl} onChange={(event) => onTargetUrlChange(event.target.value)} placeholder="http://127.0.0.1:3000" /></label>
-      <label className="watch-option"><input type="checkbox" checked={watchChanges} onChange={(event) => onWatchChangesChange(event.target.checked)} /><span><strong>Watch this project</strong><small>After a short pause, Verion verifies observed source changes in the background.</small></span></label>
-      {error && <p className="form-error" id="connection-error" role="alert">{error}</p>}
-      <button className="button button--primary" type="submit">Connect project <span>→</span></button>
-    </form>
+    <div className="connection-form launch-notice">
+      <div className="form-heading"><p className="section-label">Local agent</p><h2 id="connection-title">Start from the project you want to trust.</h2><p>Open a terminal in that project’s root and run:</p></div>
+      <code className="launch-command">verion</code>
+      <p className="launch-copy">Verion reads that directory, watches its source changes, and looks for a local development server. Nothing needs to be copied into this browser.</p>
+      <details className="launch-advanced"><summary>Local app was not detected?</summary><p>Start with an explicit address only when needed: <code>verion --url http://127.0.0.1:3000</code></p></details>
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>
   </section>
 }
 
-function ConnectionSummary({ connection, gptDiagnosis, isVerifying, onVerify, onChangeProject }: { connection: Connection; gptDiagnosis?: GptDiagnosisStatus; isVerifying: boolean; onVerify: () => void; onChangeProject: () => void }) {
+function ConnectionSummary({ connection, gptDiagnosis, isVerifying, onVerify, onVerifyAnotherProject }: { connection: Connection; gptDiagnosis?: GptDiagnosisStatus; isVerifying: boolean; onVerify: () => void; onVerifyAnotherProject: () => void }) {
   const projectName = connection.discovery.packageName ?? connection.projectPath.split('/').filter(Boolean).pop() ?? 'Connected project'
   return <section className="workspace project-summary" aria-labelledby="project-title">
     <div className="evidence-rail evidence-rail--active" aria-hidden="true"><span>Connected</span><i /><span>{connection.watchChanges ? 'Watching' : 'Paused'}</span><i /><span>Report</span></div>
-    <div className="project-main"><p className="section-label">Approved local scope</p><h2 id="project-title">{projectName}</h2><code>{connection.projectPath}</code><dl><div><dt>Framework</dt><dd>{connection.discovery.framework}</dd></div><div><dt>Target</dt><dd>{connection.targetUrl ?? 'Repository only'}</dd></div><div><dt>Watcher</dt><dd>{connection.watchChanges ? 'Watching changes' : 'Off'}</dd></div><div><dt>Diagnosis</dt><dd>{gptDiagnosis?.configured ? `GPT ready · ${gptDiagnosis.model}` : 'GPT needs setup'}</dd></div></dl></div>
-    <div className="project-actions"><button className="button button--primary" type="button" onClick={onVerify} disabled={isVerifying}>{isVerifying ? 'Verifying…' : 'Verify now'} <span>→</span></button><button className="text-button" type="button" onClick={onChangeProject} disabled={isVerifying}>Change project</button></div>
+    <div className="project-main"><p className="section-label">Approved local scope</p><h2 id="project-title">{projectName}</h2><code>{connection.projectPath}</code><dl><div><dt>Framework</dt><dd>{connection.discovery.framework}</dd></div><div><dt>Target</dt><dd>{connection.targetUrl ?? 'Looking for a local app'}</dd></div><div><dt>Watcher</dt><dd>{connection.watchChanges ? 'Watching changes' : 'Off'}</dd></div><div><dt>Diagnosis</dt><dd>{gptDiagnosis?.configured ? `GPT ready · ${gptDiagnosis.model}` : 'GPT needs setup'}</dd></div></dl></div>
+    <div className="project-actions"><button className="button button--primary" type="button" onClick={onVerify} disabled={isVerifying}>{isVerifying ? 'Verifying…' : 'Verify now'} <span>→</span></button><button className="text-button" type="button" onClick={onVerifyAnotherProject} disabled={isVerifying}>Verify another project</button></div>
   </section>
 }
 

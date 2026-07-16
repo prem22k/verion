@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { watch, type FSWatcher } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { homedir } from 'node:os'
-import { extname, resolve } from 'node:path'
+import { dirname, extname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createServer as createViteServer } from 'vite'
 import { discoverProject } from './agent/core/projectDiscovery'
 import { getGptDiagnosisStatus } from './agent/core/runtimeConfig'
@@ -13,6 +14,15 @@ const host = '127.0.0.1'
 const changeDebounceMs = 3_000
 const ignoredPathParts = new Set(['.git', '.next', '.nuxt', '.output', '.vercel', 'artifacts', 'build', 'coverage', 'dist', 'node_modules', 'out', 'public'])
 const watchedExtensions = new Set(['.cjs', '.cts', '.css', '.html', '.js', '.json', '.jsx', '.mjs', '.mts', '.ts', '.tsx'])
+const localAppPorts = [3000, 3001, 4173, 4200, 4321, 5174, 8000, 8080]
+const dashboardRoot = dirname(fileURLToPath(import.meta.url))
+
+export type StartVerionServerOptions = {
+  port?: number
+  projectPath?: string
+  targetUrl?: string
+  watchChanges?: boolean
+}
 
 type ConnectedProject = {
   projectPath: string
@@ -31,8 +41,9 @@ type AgentEvent =
   | { type: 'attention_required'; report: NonNullable<ProjectVerificationResult['report']> }
   | { type: 'watcher_error'; message: string }
 
-export async function startVerionServer(port = 5173) {
-  const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' })
+export async function startVerionServer(options: StartVerionServerOptions = {}) {
+  const port = options.port ?? 5173
+  const vite = await createViteServer({ root: dashboardRoot, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'spa' })
   const eventClients = new Set<ServerResponse>()
   let connection: ConnectedProject | undefined
   let watcher: FSWatcher | undefined
@@ -65,6 +76,7 @@ export async function startVerionServer(port = 5173) {
     verificationRunning = true
     broadcast({ type: 'verification_started', trigger })
     try {
+      await detectTargetForConnectedProject()
       const previousRecommendation = lastRecommendation
       const result = await runProjectVerification({
         projectPath: connection.projectPath,
@@ -113,6 +125,37 @@ export async function startVerionServer(port = 5173) {
     }
   }
 
+  const connectProject = async (projectPath: string, targetUrl?: string, watchChanges = true) => {
+    const discovery = await discoverConnectedProject(projectPath)
+    const resolvedTargetUrl = targetUrl ?? await detectLocalTargetUrl(port)
+    connection = {
+      projectPath: discovery.projectRoot,
+      targetUrl: resolvedTargetUrl,
+      watchChanges,
+      connectedAt: new Date().toISOString(),
+      discovery: {
+        framework: discovery.framework,
+        packageManager: discovery.packageManager,
+        packageName: discovery.packageName,
+        entryPoints: discovery.entryPoints,
+        routes: discovery.routes
+      }
+    }
+    lastResult = undefined
+    lastRecommendation = undefined
+    startWatcher()
+    broadcast({ type: 'connected', connection })
+    return connection
+  }
+
+  const detectTargetForConnectedProject = async () => {
+    if (!connection || connection.targetUrl) return
+    const targetUrl = await detectLocalTargetUrl(port)
+    if (!targetUrl) return
+    connection = { ...connection, targetUrl }
+    broadcast({ type: 'connected', connection })
+  }
+
   const server = createServer(async (request, response) => {
     try {
       if (request.method === 'GET' && request.url === '/api/connection') {
@@ -140,24 +183,7 @@ export async function startVerionServer(port = 5173) {
         const projectPath = readRequiredString(body, 'projectPath')
         const targetUrl = readOptionalTargetUrl(body)
         const watchChanges = body.watchChanges !== false
-        const discovery = await discoverConnectedProject(projectPath)
-        connection = {
-          projectPath: discovery.projectRoot,
-          targetUrl,
-          watchChanges,
-          connectedAt: new Date().toISOString(),
-          discovery: {
-            framework: discovery.framework,
-            packageManager: discovery.packageManager,
-            packageName: discovery.packageName,
-            entryPoints: discovery.entryPoints,
-            routes: discovery.routes
-          }
-        }
-        lastResult = undefined
-        lastRecommendation = undefined
-        startWatcher()
-        broadcast({ type: 'connected', connection })
+        await connectProject(projectPath, targetUrl, watchChanges)
         return sendJson(response, 200, { connection })
       }
 
@@ -195,6 +221,7 @@ export async function startVerionServer(port = 5173) {
   })
 
   await new Promise<void>((resolveServer) => server.listen(port, host, resolveServer))
+  if (options.projectPath) await connectProject(options.projectPath, options.targetUrl, options.watchChanges !== false)
   return {
     url: `http://${host}:${port}`,
     close: async () => {
@@ -204,6 +231,21 @@ export async function startVerionServer(port = 5173) {
       await vite.close()
     }
   }
+}
+
+async function detectLocalTargetUrl(agentPort: number): Promise<string | undefined> {
+  const candidates = localAppPorts
+    .filter((port) => port !== agentPort)
+    .map((port) => `http://127.0.0.1:${port}/`)
+  const reachable = await Promise.all(candidates.map(async (url) => {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(800), redirect: 'follow' })
+      return response.ok && response.headers.get('content-type')?.includes('text/html') ? url : undefined
+    } catch {
+      return undefined
+    }
+  }))
+  return reachable.find((url): url is string => Boolean(url))
 }
 
 function shouldIgnorePath(path: string): boolean {
@@ -274,5 +316,5 @@ function screenshotPathFor(id: string, evidence: Evidence[]): string | undefined
 }
 
 if (process.argv[1]?.endsWith('server.ts')) {
-  startVerionServer().then(({ url }) => console.log(`Verion is ready at ${url}`))
+  startVerionServer({ projectPath: process.cwd() }).then(({ url }) => console.log(`Verion is ready at ${url}`))
 }
