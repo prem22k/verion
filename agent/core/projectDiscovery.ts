@@ -3,7 +3,7 @@ import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import type { PackageManager, ProjectDiscovery, ProjectFramework, ProjectRoute } from './types'
 
 const ignoredDirectories = new Set([
-  '.git', '.next', '.nuxt', '.output', '.vercel', 'artifacts', 'build', 'coverage', 'dist', 'node_modules', 'out', 'public', 'storybook-static'
+  '.git', '.next', '.nuxt', '.output', '.vercel', '.verion', 'artifacts', 'build', 'coverage', 'dist', 'node_modules', 'out', 'public', 'storybook-static'
 ])
 
 const sourceExtensions = new Set(['.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx'])
@@ -106,13 +106,16 @@ function discoverRoutes(files: string[]): ProjectRoute[] {
   const routes: ProjectRoute[] = []
   for (const file of files) {
     if (file.startsWith('app/') && /\/(?:page)\.(?:tsx|ts|jsx|js)$/.test(file)) {
-      const segments = file.replace(/^app\//, '').replace(/\/page\.(?:tsx|ts|jsx|js)$/, '').split('/').filter(Boolean)
+      const routeDirectory = file.replace(/^app\//, '').replace(/(?:^|\/)page\.(?:tsx|ts|jsx|js)$/, '')
+      const segments = routeDirectory.split('/').filter(Boolean)
       routes.push({ path: toRoutePath(segments), file, convention: 'next-app-router' })
     } else if (file.startsWith('pages/') && /\.(?:tsx|ts|jsx|js)$/.test(file) && !file.includes('/_')) {
       const route = file.replace(/^pages\//, '').replace(/\.(?:tsx|ts|jsx|js)$/, '').replace(/\/index$/, '')
       routes.push({ path: route ? `/${route}` : '/', file, convention: 'next-pages-router' })
     } else if (/^src\/(?:routes?|pages)\/.+\.(?:tsx|ts|jsx|js)$/.test(file)) {
       routes.push({ path: `/${file.split('/').pop()!.replace(/\.(?:tsx|ts|jsx|js)$/, '')}`, file, convention: 'route-candidate' })
+    } else if (/^src\/App\.(?:tsx|ts|jsx|js)$/.test(file)) {
+      routes.push({ path: '/', file, convention: 'route-candidate' })
     }
   }
   return routes.sort((left, right) => left.path.localeCompare(right.path))

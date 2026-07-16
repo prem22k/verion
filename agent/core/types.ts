@@ -37,6 +37,32 @@ export type RepositoryGraph = {
   edges: RepositoryGraphEdge[]
 }
 
+export type ProjectTechnology = {
+  id: string
+  label: string
+  kind: 'framework' | 'library' | 'service' | 'database'
+}
+
+export type ProjectUnderstanding = {
+  summary: string
+  technologies: ProjectTechnology[]
+  productAreas: string[]
+  routeCount: number
+  apiCount: number
+}
+
+export type ProjectMemory = {
+  version: 1
+  projectRoot: string
+  createdAt: string
+  updatedAt: string
+  onboardingCompletedAt?: string
+  signature: string
+  discovery: ProjectDiscovery
+  graph: RepositoryGraph
+  understanding: ProjectUnderstanding
+}
+
 export type ProjectAnalysis = {
   discovery: ProjectDiscovery
   graph: RepositoryGraph
