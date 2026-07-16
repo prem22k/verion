@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { createContextCapsule } from './core/contextCapsule'
 import type { Evidence } from './core/types'
 import { runProjectVerification } from './runProjectVerification'
+import { startVerionServer } from '../server'
 
 function optionValue(args: string[], option: string): string | undefined {
   const index = args.indexOf(option)
@@ -10,7 +11,24 @@ function optionValue(args: string[], option: string): string | undefined {
 }
 
 async function main() {
-  const [command, ...args] = process.argv.slice(2)
+  const rawArgs = process.argv.slice(2)
+  const command = rawArgs[0] && !rawArgs[0].startsWith('-') ? rawArgs[0] : 'start'
+  const args = command === 'start' && rawArgs[0]?.startsWith('-') ? rawArgs : rawArgs.slice(1)
+  if (command === 'start') {
+    const targetUrl = optionValue(args, '--url')
+    const portValue = optionValue(args, '--port')
+    const port = portValue ? Number(portValue) : undefined
+    if (portValue && (!Number.isInteger(port) || port! < 1 || port! > 65_535)) throw new Error('--port must be a valid TCP port.')
+    const server = await startVerionServer({
+      port,
+      projectPath: process.cwd(),
+      targetUrl,
+      watchChanges: !args.includes('--no-watch')
+    })
+    process.stdout.write(`Verion is watching ${process.cwd()} at ${server.url}\n`)
+    return
+  }
+
   const project = optionValue(args, '--project')
   if (!project) throw new Error('Missing required --project path.')
 
@@ -34,7 +52,7 @@ async function main() {
     if (result.diagnosisUnavailable) process.exitCode = 1
     return
   }
-  throw new Error('Usage: verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path> | verion verify --project <path> [--url <running-app-url>]')
+  throw new Error('Usage: verion [--url <running-app-url>] [--port <port>] [--no-watch] | verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path> | verion verify --project <path> [--url <running-app-url>]')
 }
 
 main().catch((error: unknown) => {

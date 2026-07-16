@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "verion": "./bin/verion.mjs"
+  },
   "scripts": {
-    "dev": "tsx server.ts",
-    "dev:verion": "tsx server.ts",
+    "dev": "tsx agent/cli.ts start",
+    "dev:verion": "tsx agent/cli.ts start",
+    "start": "tsx agent/cli.ts start",
     "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
@@ -19,14 +23,14 @@
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "tsx": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/node": "latest",
     "playwright": "latest",
-    "tsx": "latest",
     "typescript": "latest"
   }
 }
