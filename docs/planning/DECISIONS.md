@@ -219,6 +219,26 @@ The product must earn affection before it earns trust. A developer should feel w
 - Treat project learning as invisible setup.
 - Use a heavy decorative 3D mascot or animated agent swarm to simulate intelligence.
 
+## 2026-07-16 — Local Project Memory and First-Run Understanding
+
+**Decision**
+
+On the first `verion` launch from a project root, Verion creates `.verion/project-memory.json`. The file stores the discovered project, internal dependency map, a source-change signature, and a plain-language project understanding. The dashboard never displays the internal map or technical implementation terms.
+
+**Reason**
+
+The product must feel as though it has genuinely learned the developer's software before asking them to trust a release decision. Keeping memory next to the project makes that understanding durable, local, inspectable, and independent of a hosted account.
+
+**Alternatives**
+
+- Rebuild project understanding on every launch without persisting it.
+- Store project memory in a global Verion configuration directory.
+- Expose the repository graph as the primary first-run dashboard output.
+
+**Consequences**
+
+Unchanged projects return immediately with their saved understanding; source changes cause it to be refreshed before the next verification. `.verion` is excluded from discovery and Git by default. First-run UI describes detected technologies, product areas, and route/API counts in human language, then marks onboarding complete only after the developer sees it.
+
 **Consequences**
 
 The product experience is specified in `.ulpi/design/release-journey.md`. The lightweight Verion presence and review trail communicate attention and judgment. Every visible screen must preserve the emotional sequence and use product language only.

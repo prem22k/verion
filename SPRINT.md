@@ -16,7 +16,15 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
   Status: Doing  
   Dependencies: Project discovery; repository graph; browser observation; Context Capsules; OpenAI API credential and available rate limit.
 
+- [ ] **P0 — Translate verification into the customer-facing release journey**
+  Status: Doing
+  Dependencies: First-run project understanding; working verification vertical slice.
+
 ## Done
+
+- [x] **P0 — Implement first-run project understanding and local memory**
+  Status: Done
+  Dependencies: Launch-directory project connection; project discovery; repository graph.
 
 - [x] **P0 — Redesign the customer-facing verification journey before further backend work**
   Status: Done

@@ -42,10 +42,14 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Added loopback-only conventional local-app detection with an advanced `verion --url <address>` override.
 - Validated automatic discovery from both Verion and the unrelated ServX Attack Paths project.
 - Redesigned the full customer-facing product journey in `.ulpi/design/release-journey.md`, from Verion's browser arrival through local memory, review, repair, rerun, and ready-to-ship confirmation; implementation remains intentionally deferred.
+- Implemented first-run project understanding: `verion` now discovers the launched project, builds its internal project map, derives real framework/service/product-flow facts, and saves the complete local memory in `.verion/project-memory.json`.
+- Added the first-run dashboard experience: Verion introduces itself, reveals real project discoveries progressively in plain language, summarizes its understanding, and remembers the project only after the developer continues.
+- Added a durable local-memory lifecycle: unchanged projects reuse their saved understanding, source changes rebuild it before verification, and `.verion` is excluded from both discovery and version control.
+- Validated the first-run and returning-project API flow against the Verion project: persisted memory, completed onboarding, and a restart that reused the saved understanding.
 
 ## In-Progress Work
 
-- Awaiting approval to implement the redesigned customer-facing release journey before adding backend architecture.
+- Translating the remaining verification and release-report states into the approved customer-facing journey. The first-run understanding and project-home states are complete.
 
 ## Blockers
 
@@ -53,9 +57,9 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 
 ## Next Steps
 
-1. Implement the approved release-journey UI and translate existing verification events into customer-language review events.
-2. Validate the dashboard report against a running target with `OPENAI_API_KEY` configured.
-3. Verify watcher behavior against an external project target and release recommendation changes.
+1. Validate the dashboard review and release decision against a running, arbitrary project with `OPENAI_API_KEY` configured.
+2. Verify watcher behavior against an external project target and release recommendation changes.
+3. Implement the approved Fix Packet and verify-again handoff only after the release decision is stable.
 
 ## Important Decisions
 
