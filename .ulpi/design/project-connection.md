@@ -2,29 +2,34 @@
 
 This screen binds to `.ulpi/design/DESIGN.md`. Every screen must read as the same product if placed side by side.
 
-## Flow: Connect and verify a local project
+> Status: launch guidance only. The customer-facing verification experience is specified in [`release-journey.md`](release-journey.md). Do not introduce a separate connection screen once Verion has started from the project directory.
 
-**Goal:** Connect an approved local project to the local agent and receive one evidence-backed release decision.
+## Flow: Start and verify the current local project
 
-**User Story:** As a developer, I want to connect my project directory and local app URL so that Verion can verify changes without a test script.
+**Goal:** Start the local agent from a project root, discover that project automatically, and receive one evidence-backed release decision.
 
-**Trigger:** The dashboard opens with no connected project, or the developer selects `Change project`.
+**User Story:** As a developer, I want Verion to understand the project I launch it from so that verification begins without copying paths or URLs into a browser.
+
+**Trigger:** The developer runs `verion` from a project terminal. A second project is selected by starting Verion in that project, not by editing a browser form.
 
 ```text
-Connect project → validate directory and URL → connected + watching
-                                              ↓
-                                         Verify now
-                                              ↓
-                              Evidence → Context Capsule → Release report
-                                              ↓
-                           new attention state? → dashboard notification
+Terminal: `verion` from project root → agent discovers current directory
+                                           ↓
+                              detects a conventional localhost app when available
+                                           ↓
+                                  connected + watching → Verify now
+                                                         ↓
+                                       Evidence → Context Capsule → Release report
+                                                         ↓
+                                    new attention state? → dashboard notification
 ```
 
 ### States and edge cases
 
-- Empty: show two fields, project directory required and running URL optional, with one primary `Connect project` action.
-- Invalid directory or URL: retain values, show inline error, move focus to the error summary.
-- Connected with no URL: discovery is available; the UI explains browser observation needs a running URL.
+- Agent not started: show one terminal command, `verion`, and state that it must be run from the project root. No browser fields or fake file picker.
+- Agent starts from an unsupported directory: show the agent's concise terminal error. The dashboard does not guess at a different folder.
+- Local app detected: show its resolved localhost address as observed scope.
+- No local app detected: discovery remains available; verification explains that browser observation begins automatically when a conventional localhost app is available. An explicit `verion --url <address>` command is the advanced fallback.
 - Verifying: disable duplicate run actions; live region states what the agent is doing.
 - GPT unavailable: show collected Evidence and a concise configuration instruction. Never fabricate a report.
 - File change: show quiet `Change observed` status. After a 3-second debounce, show `Verifying update`.
@@ -34,23 +39,21 @@ Connect project → validate directory and URL → connected + watching
 
 ## Components
 
-### `ProjectConnectionForm`
+### `AgentLaunchNotice`
 
-Purpose: collect explicit local scope before the agent reads or visits anything.
+Purpose: explain the one terminal action required before the dashboard can exist.
 
-- Fields: `Project directory` (required text path), `Running app URL` (optional URL), `Watch changes` (checked by default).
-- Primary: `Connect project`.
-- Secondary: none. The form is the focal action.
-- Native label, input, checkbox, and button controls. Error text uses `aria-describedby`; status uses `aria-live="polite"`.
-- Keyboard: normal tab order, Enter submits, visible 3px accent focus ring.
-- Mobile: full-width controls and 48px minimum action target.
+- One short code command: `verion`.
+- Copy explains that the agent reads the directory the command was run from and searches conventional localhost development ports. It is not a browser form and has no editable configuration controls.
+- Advanced disclosure holds the `verion --url http://127.0.0.1:3000` fallback. It is visually secondary and does not compete with the primary flow.
+- Native `code`, `details`, and button controls only. Copy action reports success with a polite live region.
 
 ### `ConnectionSummary`
 
 Purpose: confirm approved scope and make the background behavior reviewable.
 
-- Shows project name, framework, resolved project path, target URL state, and watcher state.
-- `Change project` is a subdued text button. `Verify now` is the sole primary action.
+- Shows project name, framework, resolved project path, detected target URL state, and watcher state.
+- `Verify another project` is a subdued text button that returns to the launch instruction. `Verify now` is the sole primary action.
 - The evidence rail runs alongside these stages: Connected, Watching, Verifying, Report.
 
 ### `ReleaseReport`
@@ -63,7 +66,7 @@ Purpose: state one evidence-backed decision without turning into a scanner dashb
 
 ## Accessibility and responsive behavior
 
-- One H1 per view. Form errors are announced. Verification progress and watcher events use polite live regions.
+- One H1 per view. Launch instructions and verification progress use polite live regions.
 - Focus remains on the action that initiated a run; it is not stolen by streaming status.
 - On screens below 768px, the rail becomes a horizontal sequence above content; form and report stack.
 - All tokens, controls, and states follow `DESIGN.md`; light and dark system themes are supported.
@@ -75,11 +78,11 @@ Purpose: state one evidence-backed decision without turning into a scanner dashb
 - [x] Distinct signature: the evidence rail carries the verification story.
 - [x] Empty, connected, loading, error, GPT-unavailable, watcher, and attention states are specified.
 - [x] WCAG AA ratios and keyboard/live-region behavior are specified.
-- [x] One primary action per state; form has three controls.
+- [x] One primary action per state; onboarding has no configuration fields.
 - [x] Self-critique: distinctiveness 3, hierarchy 4, consistency 4, accessibility 4, state coverage 4, copy 4, restraint 4, motion 3. Total 30/32.
 
 ## Build handoff
 
 Target: `react-vite-tailwind-engineer`.
 
-Implementation uses the existing Vite application and native semantic HTML controls to avoid adding a component-library dependency for a three-control local form. Apply the locked tokens exactly; do not redesign or re-implement components. Acceptance requires a live local-agent connection, manual verification, change watch, and in-app attention notification.
+Implementation uses the existing Vite application and native semantic HTML controls. Apply the locked tokens exactly; do not redesign or re-implement components. Acceptance requires launching the local agent from an arbitrary project root, automatic project connection, localhost target detection or an advanced CLI URL override, manual verification, change watch, and in-app attention notification.

@@ -17,6 +17,12 @@ Quietly technical and decisively calm. Verion should feel like a trusted local i
 
 The **evidence rail**: a thin, continuous vertical rule that connects project connection, agent activity, and release judgment. It makes the verification path legible without decorative cards or fake telemetry.
 
+## Experience mandate
+
+The product is a calm review, not a control panel. The visible journey is: uncertainty, verification in motion, meaningful discovery, one release decision, a Fix Packet for Codex, and renewed confidence after a rerun.
+
+The evidence rail is a **review trail** in customer-facing copy. It shows only plain-language observations and the point at which they become a conclusion. It must never resemble a scanner feed, an agent swarm, or a progress console.
+
 ## Color (locked)
 
 | Role | OKLCH | Hex | Use |
@@ -53,6 +59,8 @@ Dark mode is re-derived through the same blue-green tint, with #142123 backgroun
 
 ## Voice
 
-Plain, confident, and specific. Action vocabulary is `Connect project`, `Verify now`, `Watching`, `Review report`. Never claim a problem was found unless report Evidence supports it.
+Plain, confident, and specific. Action vocabulary is `Verify`, `Reviewing`, `What Verion found`, `Fix with Codex`, `Verify again`, `Ready to ship`.
+
+Never expose `Evidence`, `Repository Graph`, `Context Capsule`, `producer`, `scanner`, `agent`, or tool names in customer-facing copy. Those are implementation terms. Say what Verion understands, what it is checking, what it found, and whether the developer should ship. Never claim a problem was found unless the underlying review supports it.
 
 Every screen must read as the same product if placed side by side.
