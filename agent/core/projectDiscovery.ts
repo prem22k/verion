@@ -109,7 +109,7 @@ function discoverRoutes(files: string[]): ProjectRoute[] {
       const routeDirectory = file.replace(/^app\//, '').replace(/(?:^|\/)page\.(?:tsx|ts|jsx|js)$/, '')
       const segments = routeDirectory.split('/').filter(Boolean)
       routes.push({ path: toRoutePath(segments), file, convention: 'next-app-router' })
-    } else if (file.startsWith('pages/') && /\.(?:tsx|ts|jsx|js)$/.test(file) && !file.includes('/_')) {
+    } else if (file.startsWith('pages/') && !file.startsWith('pages/api/') && /\.(?:tsx|ts|jsx|js)$/.test(file) && !file.includes('/_')) {
       const route = file.replace(/^pages\//, '').replace(/\.(?:tsx|ts|jsx|js)$/, '').replace(/\/index$/, '')
       routes.push({ path: route ? `/${route}` : '/', file, convention: 'next-pages-router' })
     } else if (/^src\/(?:routes?|pages)\/.+\.(?:tsx|ts|jsx|js)$/.test(file)) {

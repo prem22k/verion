@@ -43,12 +43,26 @@ export type ProjectTechnology = {
   kind: 'framework' | 'library' | 'service' | 'database'
 }
 
+export type ProjectUnderstandingItem = {
+  id: string
+  label: string
+}
+
 export type ProjectUnderstanding = {
   summary: string
   technologies: ProjectTechnology[]
   productAreas: string[]
   routeCount: number
   apiCount: number
+  applicationType?: string
+  authentication?: string
+  payments?: string
+  database?: string
+  framework?: string
+  userJourneys: ProjectUnderstandingItem[]
+  criticalBusinessFlows: ProjectUnderstandingItem[]
+  importantPages: ProjectUnderstandingItem[]
+  importantApis: ProjectUnderstandingItem[]
 }
 
 export type ProjectProfile = {
@@ -97,7 +111,7 @@ export type StoredReleaseReport = ReleaseReport & {
 export type KnownIssue = {
   id: string
   headline: string
-  diagnosis: string
+  rootCause: string
   firstSeenAt: string
   lastSeenAt: string
   occurrences: number
@@ -106,7 +120,7 @@ export type KnownIssue = {
 }
 
 export type ProjectMemory = {
-  version: 2
+  version: 4
   profile: ProjectProfile
   createdAt: string
   updatedAt: string
@@ -162,6 +176,7 @@ export type EvidenceProductionContext = {
   projectPath: string
   targetUrl?: string
   evidence: Evidence[]
+  onEvidence?: (evidence: Evidence) => void | Promise<void>
 }
 
 export interface EvidenceProducer {
@@ -178,10 +193,14 @@ export type ContextCapsule = {
 
 export type ReleaseRecommendation = 'ready_to_ship' | 'needs_attention' | 'inconclusive'
 
+export type ReleaseConfidence = 'high' | 'moderate' | 'limited'
+
 export type ReleaseReport = {
   recommendation: ReleaseRecommendation
+  confidence: ReleaseConfidence
   headline: string
-  diagnosis: string
+  rootCause: string
+  reasons: string[]
   evidenceIds: string[]
   nextAction: string
 }

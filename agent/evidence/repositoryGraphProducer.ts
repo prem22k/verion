@@ -9,13 +9,15 @@ export class RepositoryGraphProducer implements EvidenceProducer {
     if (!discoveryEvidence) return []
     const discovery = discoveryEvidence.data as ProjectDiscovery
     const graph = await buildRepositoryGraph(discovery)
-    return [{
+    const evidence = {
       id: 'repository-graph',
       producer: this.id,
       kind: 'repository_graph',
       capturedAt: new Date().toISOString(),
       summary: `Mapped ${graph.nodes.length} repository nodes and ${graph.edges.length} relationships.`,
       data: graph
-    }]
+    } satisfies Evidence
+    await context.onEvidence?.(evidence)
+    return [evidence]
   }
 }

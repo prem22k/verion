@@ -1,4 +1,4 @@
-import type { ContextCapsule, ReleaseReport } from './types'
+import type { ContextCapsule, ReleaseConfidence, ReleaseReport } from './types'
 import { getGptDiagnosisConfig } from './runtimeConfig'
 
 const diagnosisSchema = {
@@ -9,15 +9,24 @@ const diagnosisSchema = {
       type: 'string',
       enum: ['ready_to_ship', 'needs_attention', 'inconclusive']
     },
+    confidence: {
+      type: 'string',
+      enum: ['high', 'moderate', 'limited']
+    },
     headline: { type: 'string' },
-    diagnosis: { type: 'string' },
+    rootCause: { type: 'string' },
+    reasons: {
+      type: 'array',
+      maxItems: 3,
+      items: { type: 'string' }
+    },
     evidenceIds: {
       type: 'array',
       items: { type: 'string' }
     },
     nextAction: { type: 'string' }
   },
-  required: ['recommendation', 'headline', 'diagnosis', 'evidenceIds', 'nextAction']
+  required: ['recommendation', 'confidence', 'headline', 'rootCause', 'reasons', 'evidenceIds', 'nextAction']
 }
 
 export async function diagnoseContextCapsule(capsule: ContextCapsule): Promise<ReleaseReport> {
@@ -42,7 +51,9 @@ export async function diagnoseContextCapsule(capsule: ContextCapsule): Promise<R
             content: [
               'You are Verion, a careful release reviewer for AI-built software.',
               'Diagnose only from the supplied Context Capsule. Do not claim that a behavior, root cause, or fix is proven unless the capsule supports it.',
-              'Return one concise release recommendation. Prefer inconclusive when the evidence is insufficient.',
+              'Return exactly one concise release recommendation, one likely root cause, and no more than three distinct short reasons grounded in the supplied material.',
+              'Prefer an inconclusive recommendation with limited confidence whenever the supplied material cannot support a release call or root-cause claim.',
+              'Use high confidence only when the supplied material directly supports the recommendation. For ready_to_ship, state the narrow observed basis for no current release blocker instead of inventing a problem.',
               'Cite one or more Evidence IDs from the capsule. Do not mention tools or request tool access.'
             ].join(' ')
           },
@@ -121,13 +132,15 @@ function parseReleaseReport(output: unknown): ReleaseReport {
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('GPT diagnosis returned an invalid structured output.')
   const report = value as Record<string, unknown>
-  if (!isRecommendation(report.recommendation) || !isNonEmptyString(report.headline) || !isNonEmptyString(report.diagnosis) || !isNonEmptyString(report.nextAction) || !isEvidenceIds(report.evidenceIds)) {
+  if (!isRecommendation(report.recommendation) || !isConfidence(report.confidence) || !isNonEmptyString(report.headline) || !isNonEmptyString(report.rootCause) || !isReasons(report.reasons) || !isNonEmptyString(report.nextAction) || !isEvidenceIds(report.evidenceIds)) {
     throw new Error('GPT diagnosis returned an invalid structured report.')
   }
   return {
     recommendation: report.recommendation,
+    confidence: report.confidence,
     headline: report.headline,
-    diagnosis: report.diagnosis,
+    rootCause: report.rootCause,
+    reasons: report.reasons,
     evidenceIds: report.evidenceIds,
     nextAction: report.nextAction
   }
@@ -137,10 +150,20 @@ function isRecommendation(value: unknown): value is ReleaseReport['recommendatio
   return value === 'ready_to_ship' || value === 'needs_attention' || value === 'inconclusive'
 }
 
+function isConfidence(value: unknown): value is ReleaseConfidence {
+  return value === 'high' || value === 'moderate' || value === 'limited'
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
 function isEvidenceIds(value: unknown): value is string[] {
   return Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString) && new Set(value).size === value.length
+}
+
+function isReasons(value: unknown): value is string[] {
+  if (!Array.isArray(value) || value.length > 3 || !value.every(isNonEmptyString)) return false
+  const normalized = value.map((reason) => reason.trim().toLowerCase())
+  return new Set(normalized).size === normalized.length
 }

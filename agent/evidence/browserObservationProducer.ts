@@ -15,6 +15,10 @@ export class BrowserObservationProducer implements EvidenceProducer {
     const runDirectory = join(tmpdir(), 'verion-evidence', `${Date.now()}-${Math.random().toString(16).slice(2)}`)
     await mkdir(runDirectory, { recursive: true })
 
+    const record = async (item: Evidence) => {
+      evidence.push(item)
+      await context.onEvidence?.(item)
+    }
     let browser: Browser | undefined
     try {
       browser = await chromium.launch({ headless: true })
@@ -22,7 +26,7 @@ export class BrowserObservationProducer implements EvidenceProducer {
 
       page.on('console', (message) => {
         if (message.type() === 'debug' || message.type() === 'info') return
-        evidence.push({
+        void record({
           id: `${this.id}:console:${evidence.length}`,
           producer: this.id,
           kind: 'console_log',
@@ -34,7 +38,7 @@ export class BrowserObservationProducer implements EvidenceProducer {
       })
 
       page.on('requestfailed', (request) => {
-        evidence.push({
+        void record({
           id: `${this.id}:network:${evidence.length}`,
           producer: this.id,
           kind: 'network_log',
@@ -47,7 +51,7 @@ export class BrowserObservationProducer implements EvidenceProducer {
 
       page.on('response', (response) => {
         if (response.status() < 400) return
-        evidence.push({
+        void record({
           id: `${this.id}:response:${evidence.length}`,
           producer: this.id,
           kind: 'network_log',
@@ -70,7 +74,7 @@ export class BrowserObservationProducer implements EvidenceProducer {
       )
 
       const title = await page.title()
-      evidence.unshift({
+      const pageEvidence: Evidence = {
         id: `${this.id}:page`,
         producer: this.id,
         kind: 'browser_exploration',
@@ -82,8 +86,10 @@ export class BrowserObservationProducer implements EvidenceProducer {
           title,
           interactiveElements
         }
-      })
-      evidence.push({
+      }
+      evidence.unshift(pageEvidence)
+      await context.onEvidence?.(pageEvidence)
+      await record({
         id: `${this.id}:screenshot`,
         producer: this.id,
         kind: 'screenshot',
@@ -93,7 +99,7 @@ export class BrowserObservationProducer implements EvidenceProducer {
         data: { path: screenshotPath }
       })
     } catch (error: unknown) {
-      evidence.push({
+      const failure: Evidence = {
         id: `${this.id}:failure`,
         producer: this.id,
         kind: 'browser_exploration',
@@ -101,7 +107,8 @@ export class BrowserObservationProducer implements EvidenceProducer {
         summary: `Browser observation could not complete: ${error instanceof Error ? error.message : 'Unknown error'}`,
         location: { url: context.targetUrl },
         data: { status: 'failed' }
-      })
+      }
+      await record(failure)
     } finally {
       await browser?.close()
     }
