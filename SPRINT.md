@@ -22,6 +22,30 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
 
 ## Done
 
+- [x] **P0 — Distill release reports into one clear decision**
+  Status: Done
+  Dependencies: Structured GPT diagnosis; persistent local memory; Mission Control report shelf.
+
+- [x] **P0 — Show likely product impact after source changes**
+  Status: Done
+  Dependencies: Persistent local memory; local project watcher; curated Mission Control payload.
+
+- [x] **P0 — Stream meaningful observations during live verification**
+  Status: Done
+  Dependencies: Target-agnostic browser observation; live review lifecycle; curated Mission Control payload.
+
+- [x] **P0 — Make verification feel alive in Mission Control**
+  Status: Done
+  Dependencies: Target-agnostic verification lifecycle; Mission Control briefing.
+
+- [x] **P0 — Expand Project Understanding in Mission Control**
+  Status: Done
+  Dependencies: Persistent local memory; target-agnostic project discovery.
+
+- [x] **P0 — Redesign the dashboard as Mission Control**
+  Status: Done
+  Dependencies: Persistent local memory; customer-facing release journey.
+
 - [x] **P0 — Design and implement project-owned local memory**
   Status: Done
   Dependencies: First-run project understanding; target-agnostic verification result.

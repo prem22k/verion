@@ -257,11 +257,131 @@ Verion should become more useful as it reviews a project without turning project
 
 **Consequences**
 
-Memory is bounded, contains no copied source, screenshots, credentials, or browser-session data, and is never sent to GPT or exposed by the local dashboard server. A completed verification records only durable outcome data and can reopen, increment, or resolve known issue records. See `LOCAL_MEMORY.md` for the complete schema and lifecycle.
+Memory is bounded, contains no copied source, screenshots, credentials, or browser-session data, and is never sent to GPT. A completed verification records only durable outcome data and can reopen, increment, or resolve known issue records. See `LOCAL_MEMORY.md` for the complete schema and lifecycle.
+
+## 2026-07-17 — Mission Control as a Curated Local Briefing
+
+**Decision**
+
+The returning-project dashboard is Mission Control: a release briefing that presents Project Understanding, Recent Changes, Known User Journeys, Current Status, one Verify action, and Recent Reports. The local dashboard receives a curated Mission Control summary from `.verion` rather than the full memory file or verification internals.
+
+**Reason**
+
+Developers need a clear release-oriented point of view, not an engineering console. The product can remember a great deal while showing only the information that helps a developer decide what to verify and whether to ship.
+
+**Alternatives**
+
+- Expose the full local-memory JSON in the browser.
+- Keep the previous technical project summary and evidence-oriented report layout.
+- Add separate dashboard pages for every memory category.
+
+**Consequences**
+
+The loopback browser payload is limited to plain-language understanding, grouped change summaries, journey labels, release status, and recent report copy. Raw source, paths, screenshots, evidence IDs, credentials, and internal vocabulary remain server-side. Mission Control uses ruled briefing lists rather than cards, tables, logs, or telemetry aesthetics.
+
+## 2026-07-17 — Conservative Product Understanding
+
+**Decision**
+
+Extend the project-owned learning record with plain-language application type, authentication, payments, database, framework, user journeys, critical flows, important pages, and important APIs. Infer each fact only from a recognized dependency, framework convention, Prisma provider, or clearly named local route/file signal.
+
+**Reason**
+
+Verion needs to establish that it understands what the application is for before the developer asks it to verify a release. Unsupported product claims would undermine that trust more than an incomplete briefing.
+
+**Alternatives**
+
+- Present route and dependency inventories without product interpretation.
+- Use an LLM to guess product purpose from all project source during local learning.
+- Show generic empty categories for every project.
+
+**Consequences**
+
+Project Understanding improves locally whenever the project changes, but it omits any fact that does not have support. The dashboard receives human labels only; route syntax, source paths, parser details, and the underlying project map remain local implementation details.
+
+## 2026-07-17 — Observable Review Lifecycle
+
+**Decision**
+
+Present verification as one calm, four-step review path: understanding the project, reviewing what changed, checking the product, and making a release decision. Advance each step only when the corresponding local verification boundary occurs, and retain a paused review snapshot when the run cannot finish.
+
+**Reason**
+
+A developer needs to see thoughtful progress without being handed a technical feed. Lifecycle-backed progress is trustworthy; a timer or generic loading state is not.
+
+**Alternatives**
+
+- Keep the single passive `Reviewing now` state.
+- Stream tool output, counters, identifiers, or logs into the dashboard.
+- Simulate review progress with client-side timers.
+
+**Consequences**
+
+The server curates a small loopback-only review payload with plain-language steps and change groups. The dashboard can recover that snapshot on refresh, preserve completed steps on a paused review, and return directly to the expanded release decision when it completes. Tool names, paths, evidence, and implementation data remain outside the browser contract.
 
 **Consequences**
 
 The product experience is specified in `.ulpi/design/release-journey.md`. The lightweight Verion presence and review trail communicate attention and judgment. Every visible screen must preserve the emotional sequence and use product language only.
+
+## 2026-07-17 — Curated Live Review Observations
+
+**Decision**
+
+During the running-product portion of a verification, retain normalized findings internally and stream only a bounded, server-curated observation brief to Mission Control. Each line is a deduplicated `{ tone, message }` outcome grounded in a real local finding.
+
+**Reason**
+
+Developers need to see that Verion is noticing meaningful outcomes while it reviews the product, without being asked to interpret a browser, network, or logging feed.
+
+**Alternatives**
+
+- Stream raw findings directly to the browser.
+- Wait until the release decision to reveal every observation.
+- Simulate reassuring product activity with timed copy.
+
+**Consequences**
+
+The review payload carries at most six current observations and only while a running product is available. The server maps supported outcomes to short human language such as a loaded app, an incomplete app action, an HTTP failure, or a console error. It never exposes URLs, endpoints, error contents, stack traces, identifiers, source paths, or producer information, and the temporary brief is not persisted as project memory.
+
+## 2026-07-17 — Likely Impact Is a Product Cue, Not a Change Log
+
+**Decision**
+
+When the local watcher notices a supported source change, refresh the project-owned memory before the background review begins and curate at most three likely product-impact labels for Mission Control. The primary action becomes `Verify now` while the cue is present.
+
+**Reason**
+
+Developers need to know what deserves another look, not how many files changed. A short product-area cue creates a useful moment of agency without turning Mission Control into a diff viewer or making a release claim.
+
+**Alternatives**
+
+- Show a changed-file count or the changed path list.
+- Infer broad relevance for every local code edit.
+- Wait until the release decision to mention the change.
+
+**Consequences**
+
+Inference is server-only and deterministic. It can use only the latest local changed paths plus existing learned product labels, and it emits only strong supported names such as Billing, Authentication, Dashboard, Settings, or a matching learned area. The dashboard gets opaque IDs and labels only: no paths, counts, source, matching rule, score, or source content. Unsupported changes stay quiet and the cue disappears after the latest change has been reviewed.
+
+## 2026-07-17 — Release Confidence Is a Bounded Decision Brief
+
+**Decision**
+
+Persist and present each release report as one recommendation, one confidence label, one likely root cause, at most three distinct reasons, and one next action. Mission Control curates only those customer-facing fields; screenshots remain hidden until a future report can explicitly establish that one is needed to understand the root cause.
+
+**Reason**
+
+A release call should feel like advice from a Staff Engineer: clear enough to act on immediately, but grounded enough to trust. Showing a broad diagnosis or raw verification material makes the developer do the synthesis that Verion is meant to provide.
+
+**Alternatives**
+
+- Preserve the previous headline-and-diagnosis report layout.
+- Expose every finding and screenshot beside each release call.
+- Replace historical reports that do not match the new structure.
+
+**Consequences**
+
+GPT must choose limited confidence and an inconclusive recommendation when the local capsule cannot justify a call. Saved reports from earlier local-memory versions are normalized safely rather than discarded. Evidence IDs remain internal, and the browser contract excludes evidence, paths, URLs, tool names, logs, screenshots, and internal reasoning artifacts.
 
 ## 2026-07-15 — Explicit Local Project Connection and Quiet Watch (Superseded)
 

@@ -46,12 +46,19 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Added the first-run dashboard experience: Verion introduces itself, reveals real project discoveries progressively in plain language, summarizes its understanding, and remembers the project only after the developer continues.
 - Added a durable local-memory lifecycle: unchanged projects reuse their saved understanding, source changes rebuild it before verification, and `.verion` is excluded from both discovery and version control.
 - Validated the first-run and returning-project API flow against the Verion project: persisted memory, completed onboarding, and a restart that reused the saved understanding.
-- Designed and implemented Version 2 of project-owned local memory in `.verion/project-memory.json`: project profile, technologies, routes, user journeys, learned understanding, recent changes, verification history, release reports, and known issues.
-- Made every completed verification improve local memory while keeping it bounded and private; the memory file is never sent to GPT or exposed through a dashboard endpoint.
+- Designed and implemented Version 3 of project-owned local memory in `.verion/project-memory.json`: project profile, technologies, routes, user journeys, learned understanding, recent changes, verification history, release reports, and known issues.
+- Made every completed verification improve local memory while keeping it bounded and private; the memory file is never sent to GPT, and the dashboard receives only a curated local summary.
+- Redesigned the returning-project dashboard as Mission Control: a calm release briefing with Project Understanding, Recent Changes, Known User Journeys, Current Status, one Verify action, and Recent Reports.
+- Added a curated loopback-only Mission Control summary. The browser receives user-facing local-memory facts only, never raw memory, file paths, source excerpts, evidence identifiers, screenshots, or credentials.
+- Expanded Project Understanding with conservative, persisted inferences for application type, sign-in, billing, database, framework, user journeys, critical flows, important pages, and important APIs. Mission Control presents these as a plain-English local briefing, without routes or parser vocabulary.
+- Replaced passive verification loading with a live, customer-language review path. Actual local lifecycle boundaries now update Project Understanding, What Changed, Checking the Product, and Making a Release Decision; the loopback UI receives only the curated review state.
+- Added live review observations from real browser outcomes. The local server translates normalized findings into at most six deduplicated, human-readable outcomes while checking a running app; raw observation data never enters the dashboard payload.
+- Added conservative Likely Impact briefings for watched source changes. Verion refreshes local memory, maps only supported changes to up to three product areas, and offers one `Verify now` action without exposing paths, counts, or matching rules.
+- Redesigned persisted release reports as a bounded Staff Engineer decision brief: one recommendation, confidence label, likely root cause, at most three reasons, and one next action. Legacy local reports normalize safely, while the browser receives only this curated conclusion.
 
 ## In-Progress Work
 
-- Translating the remaining verification and release-report states into the approved customer-facing journey. The first-run understanding, project-home, and persistent local-memory foundation are complete.
+- Validate the complete customer-facing verification and release-report flow against arbitrary running projects. Mission Control now includes the live review path, Project Understanding briefing, and bounded release-confidence report.
 
 ## Blockers
 
@@ -60,7 +67,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 ## Next Steps
 
 1. Validate the dashboard review and release decision against a running, arbitrary project with `OPENAI_API_KEY` configured.
-2. Verify watcher behavior against an external project target, including the local recent-changes and verification-history update.
+2. Verify watcher behavior against an external project target, including Mission Control's local recent-changes and report updates.
 3. Implement the approved Fix Packet and verify-again handoff only after the release decision is stable.
 
 ## Important Decisions
