@@ -152,6 +152,10 @@ h3 { margin-bottom: 12px; font-size: 23px; line-height: 1.1; }
 .report-detail__section ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .report-detail__section li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 8px; }
 .report-detail__section li::before { content: '•'; color: #5b6d6f; }
+.fix-action { max-width: 440px; margin-top: 28px; border-top: 1px solid #c5d0d0; padding-top: 18px; }
+.fix-action .button { width: 100%; }
+.fix-action__again { margin-top: 1px; }
+.fix-action__message { max-width: 48ch; margin: 11px 0 0; color: #5b6d6f; font-size: 14px; line-height: 1.5; }
 .form-error { margin: 20px 0 0; color: #a13e2a; line-height: 1.5; }
 
 .mission-loading { display: grid; gap: 34px; padding: 96px 0; }
@@ -216,7 +220,7 @@ h3 { margin-bottom: 12px; font-size: 23px; line-height: 1.1; }
   :root { color: #e4eeee; background: #142123; }
   .brand, .briefing-list strong, .report-row > button, .report-detail h3, .report-detail__section h4, .launch-command { color: #e4eeee; }
   .topbar, .technology-sentence, .area-sentence, .project-matters__statements p, .project-matters__partial, .understanding-group li, .likely-impact p:last-of-type, .release-status > div:not(.verion-presence) p:last-child, .briefing-list li span, .briefing-empty, .report-row time, .report-confidence, .report-detail__section p, .report-detail__section li, .launch-notice > p:not(.section-label), .first-run__lead, .first-run__finish p, .connection-recovery, .quiet-notice { color: #aec0c1; }
-  .mission-masthead, .project-matters, .understanding-group, .likely-impact, .briefing-columns, .briefing-list ul, .briefing-list li, .report-rows, .report-row, .connection-recovery, .quiet-notice, .first-run__finish, .change-brief, .observation-brief { border-color: #385052; }
+  .mission-masthead, .project-matters, .understanding-group, .likely-impact, .briefing-columns, .briefing-list ul, .briefing-list li, .report-rows, .report-row, .connection-recovery, .quiet-notice, .first-run__finish, .change-brief, .observation-brief, .fix-action { border-color: #385052; }
   .likely-impact strong { color: #e4eeee; }
   .live-review__lead, .review-path__step > div > p, .change-brief p:last-child, .observation-brief > p:last-child { color: #aec0c1; }
   .review-path::before { background: #385052; }
