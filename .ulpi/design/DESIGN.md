@@ -6,22 +6,22 @@ color_strategy: restrained
 design_system: native semantic HTML controls
 design_variance: 5
 motion_intensity: 2
-visual_density: 6
+visual_density: 4
 ---
 
 ## Design Read
 
-Quietly technical and decisively calm. Verion should feel like a trusted local instrument, not a generic SaaS dashboard.
+Quietly technical and decisively calm. Verion should feel like a trusted local instrument that delivers a release briefing, not a generic SaaS dashboard or a developer console.
 
 ## Signature
 
-The **Verion presence and review trail**: a small, lightweight geometric companion appears when Verion is learning or reviewing. A thin, continuous review trail connects what it learned, what it checked, and the release judgment. Together they make Verion feel present without becoming a mascot or fake telemetry.
+The **Verion presence and briefing rule**: a small, lightweight geometric companion appears when Verion is learning or reviewing. A thin, continuous rule connects project understanding, the current release state, and the next decision. Together they make Verion feel present without becoming a mascot, a control-room simulation, or fake telemetry.
 
 ## Experience mandate
 
-The product is a calm review, not a control panel. The visible journey is: uncertainty, verification in motion, meaningful discovery, one release decision, a Fix Packet for Codex, and renewed confidence after a rerun.
+The product is a calm review, not a control panel. Its home is Mission Control: a legible briefing of what Verion understands, what changed, which journeys matter, the current release state, and one next action.
 
-The review trail shows only plain-language observations and the point at which they become a conclusion. It must never resemble a scanner feed, an agent swarm, or a progress console.
+The briefing rule shows only plain-language observations and the point at which they become a conclusion. It must never resemble a scanner feed, an agent swarm, a progress console, a table, or a stream of logs.
 
 The Verion presence is not a heavy 3D scene. It is a fast inline SVG form: a rounded teal aperture around a small `V` core with one moving review line. It has three legible states: listening, learning, and certain. Its job is to give a first-time user a feeling of thoughtful attention, not entertainment.
 
