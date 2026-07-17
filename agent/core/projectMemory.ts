@@ -345,7 +345,9 @@ function browserJourneys(evidence: Evidence[], observedAt: string): KnownUserJou
     if (!route) return []
     const details = item.data && typeof item.data === 'object' ? item.data as Record<string, unknown> : {}
     const title = typeof details.title === 'string' && details.title.trim() ? details.title.trim().slice(0, 120) : journeyLabel(route)
-    const interactiveElementCount = Array.isArray(details.interactiveElements) ? details.interactiveElements.length : undefined
+    const interactiveElementCount = typeof details.interactiveElementCount === 'number'
+      ? details.interactiveElementCount
+      : Array.isArray(details.interactiveElements) ? details.interactiveElements.length : undefined
     return [{
       id: `browser:${route}`,
       label: title,

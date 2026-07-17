@@ -3,6 +3,7 @@ import { diagnoseContextCapsule } from './core/gptDiagnosis'
 import { learnProject, recordProjectVerification } from './core/projectMemory'
 import type { Evidence, ProjectVerificationResult } from './core/types'
 import { BrowserObservationProducer } from './evidence/browserObservationProducer'
+import { DeepSecurityReviewProducer, enforceCriticalSecurityDecision, securityReviewFailureReport } from './evidence/deepSecurityReviewProducer'
 import { RepositoryDiscoveryProducer } from './evidence/repositoryDiscoveryProducer'
 import { RepositoryGraphProducer } from './evidence/repositoryGraphProducer'
 import { VerificationOrchestrator } from './orchestration/verificationOrchestrator'
@@ -13,20 +14,24 @@ export type ProjectVerificationRequest = {
   diagnose?: boolean
   trigger?: 'manual' | 'change' | 'cli'
   recordMemory?: boolean
-  onReviewProgress?: (stage: 'reviewing_changes' | 'checking_product' | 'making_decision') => void | Promise<void>
+  onReviewProgress?: (stage: 'reviewing_changes' | 'checking_product' | 'deep_security_review' | 'making_decision') => void | Promise<void>
   onEvidence?: (evidence: Evidence) => void | Promise<void>
 }
 
 export async function runProjectVerification(request: ProjectVerificationRequest): Promise<ProjectVerificationResult> {
   await learnProject(request.projectPath)
   const browserObservation = new BrowserObservationProducer()
+  const deepSecurityReview = DeepSecurityReviewProducer.fromLocalEnvironment()
   await request.onReviewProgress?.('reviewing_changes')
-  const evidence = await new VerificationOrchestrator([
+  const producers = [
     new RepositoryDiscoveryProducer(),
     new RepositoryGraphProducer(),
-    browserObservation
-  ]).verify(request, async (producer) => {
+    browserObservation,
+    ...(deepSecurityReview ? [deepSecurityReview] : [])
+  ]
+  const evidence = await new VerificationOrchestrator(producers).verify(request, async (producer) => {
     if (producer === browserObservation) await request.onReviewProgress?.('checking_product')
+    if (producer === deepSecurityReview) await request.onReviewProgress?.('deep_security_review')
   })
   const capsule = await createContextCapsule(evidence)
   let result: ProjectVerificationResult
@@ -35,7 +40,12 @@ export async function runProjectVerification(request: ProjectVerificationRequest
     result = { evidence, capsule }
   } else {
     try {
-      result = { evidence, capsule, report: await diagnoseContextCapsule(capsule) }
+      const failureReport = securityReviewFailureReport(evidence)
+      if (failureReport) {
+        result = { evidence, capsule, report: failureReport }
+      } else {
+        result = { evidence, capsule, report: enforceCriticalSecurityDecision(await diagnoseContextCapsule(capsule), evidence) }
+      }
     } catch (error: unknown) {
       result = {
       evidence,

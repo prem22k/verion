@@ -151,6 +151,7 @@ export type EvidenceKind =
   | 'console_log'
   | 'network_log'
   | 'screenshot'
+  | 'security_review'
   | 'security_finding'
   | 'performance_finding'
   | 'accessibility_finding'

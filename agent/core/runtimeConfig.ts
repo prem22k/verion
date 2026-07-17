@@ -8,7 +8,7 @@ export type GptDiagnosisStatus = {
 
 let environmentLoaded = false
 
-function loadLocalEnvironment() {
+export function loadLocalEnvironment() {
   if (environmentLoaded) return
   environmentLoaded = true
   try {
