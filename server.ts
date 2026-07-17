@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { createServer as createViteServer } from 'vite'
 import { completeProjectOnboarding, learnProject, type LearnedProject } from './agent/core/projectMemory'
 import { getGptDiagnosisStatus } from './agent/core/runtimeConfig'
-import type { Evidence, ProjectDiscovery, ProjectUnderstanding, ProjectVerificationResult, ReleaseRecommendation } from './agent/core/types'
+import type { Evidence, KnownUserJourney, ProjectDiscovery, ProjectMemory, ProjectTechnology, ProjectUnderstanding, ProjectUnderstandingItem, ProjectVerificationResult, RecentProjectChange, ReleaseConfidence, ReleaseRecommendation, StoredReleaseReport } from './agent/core/types'
 import { runProjectVerification } from './agent/runProjectVerification'
 
 const host = '127.0.0.1'
@@ -38,14 +38,84 @@ type ConnectedProject = {
   }
 }
 
+type MissionReleaseStatus = 'ready_for_review' | 'ready_to_ship' | 'needs_attention' | 'inconclusive' | 'reviewing'
+
+type MissionReport = {
+  id: string
+  outcome: Exclude<MissionReleaseStatus, 'ready_for_review' | 'reviewing'>
+  confidence: ReleaseConfidence
+  headline: string
+  rootCause: string
+  reasons: string[]
+  nextAction: string
+  completedAt: string
+}
+
+type ReviewStage = 'understanding' | 'reviewing_changes' | 'checking_product' | 'making_decision'
+
+type ReviewSnapshot = {
+  stage: ReviewStage
+  hasRunningExperience: boolean
+  paused?: boolean
+  observations: ReviewObservation[]
+}
+
+type ReviewObservation = {
+  tone: 'success' | 'warning'
+  message: string
+}
+
+type MissionReview = {
+  steps: Array<{
+    title: string
+    description: string
+    state: 'completed' | 'current' | 'next' | 'paused'
+  }>
+  changes: string[]
+  hasRunningExperience: boolean
+  observations?: ReviewObservation[]
+  paused?: boolean
+  message?: string
+}
+
+type MissionControl = {
+  project: {
+    name: string
+    understanding: Pick<ProjectUnderstanding,
+      | 'summary'
+      | 'technologies'
+      | 'productAreas'
+      | 'applicationType'
+      | 'authentication'
+      | 'payments'
+      | 'database'
+      | 'framework'
+      | 'userJourneys'
+      | 'criticalBusinessFlows'
+      | 'importantPages'
+      | 'importantApis'
+    >
+  }
+  onboardingRequired: boolean
+  hasChangeBaseline: boolean
+  likelyImpact: Array<{ id: string; label: string }>
+  recentChanges: Array<{ id: string; label: string; description: string }>
+  knownUserJourneys: Array<{ id: string; label: string; source: 'project' | 'browser' }>
+  currentStatus: { kind: MissionReleaseStatus; label: string; description: string }
+  recentReports: MissionReport[]
+  review?: MissionReview
+}
+
 type AgentEvent =
-  | { type: 'connected'; connection: ConnectedProject }
+  | { type: 'connected'; mission: MissionControl }
   | { type: 'disconnected' }
-  | { type: 'change_detected'; path: string }
-  | { type: 'verification_started'; trigger: 'manual' | 'change' }
-  | { type: 'verification_completed'; trigger: 'manual' | 'change'; result: ProjectVerificationResult }
-  | { type: 'attention_required'; report: NonNullable<ProjectVerificationResult['report']> }
-  | { type: 'watcher_error'; message: string }
+  | { type: 'change_detected'; mission: MissionControl }
+  | { type: 'verification_started'; trigger: 'manual' | 'change'; mission: MissionControl }
+  | { type: 'review_progress'; trigger: 'manual' | 'change'; mission: MissionControl }
+  | { type: 'verification_completed'; trigger: 'manual' | 'change'; mission: MissionControl; report?: MissionReport }
+  | { type: 'verification_paused'; trigger: 'manual' | 'change'; mission: MissionControl }
+  | { type: 'attention_required'; report: MissionReport }
+  | { type: 'watcher_error' }
 
 export async function startVerionServer(options: StartVerionServerOptions = {}) {
   const port = options.port ?? 5173
@@ -54,10 +124,12 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
   let connection: ConnectedProject | undefined
   let watcher: FSWatcher | undefined
   let changeTimer: NodeJS.Timeout | undefined
+  let changeRefreshTimer: NodeJS.Timeout | undefined
   let verificationRunning = false
   let queuedChangeVerification = false
   let lastResult: ProjectVerificationResult | undefined
   let lastRecommendation: ReleaseRecommendation | undefined
+  let reviewSnapshot: ReviewSnapshot | undefined
 
   const broadcast = (event: AgentEvent) => {
     const payload = `data: ${JSON.stringify(event)}\n\n`
@@ -69,6 +141,8 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     watcher = undefined
     if (changeTimer) clearTimeout(changeTimer)
     changeTimer = undefined
+    if (changeRefreshTimer) clearTimeout(changeRefreshTimer)
+    changeRefreshTimer = undefined
   }
 
   const verifyConnectedProject = async (trigger: 'manual' | 'change') => {
@@ -80,24 +154,59 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     }
 
     verificationRunning = true
-    broadcast({ type: 'verification_started', trigger })
+    reviewSnapshot = {
+      stage: 'understanding',
+      hasRunningExperience: Boolean(connection.targetUrl),
+      observations: []
+    }
+    broadcast({ type: 'verification_started', trigger, mission: await missionControl() })
     try {
-      await refreshProjectUnderstanding()
       await detectTargetForConnectedProject()
       const previousRecommendation = lastRecommendation
       const result = await runProjectVerification({
         projectPath: connection.projectPath,
         targetUrl: connection.targetUrl,
         diagnose: true,
-        trigger
+        trigger,
+        onReviewProgress: async (stage) => {
+          reviewSnapshot = {
+            stage,
+            hasRunningExperience: Boolean(connection?.targetUrl),
+            observations: reviewSnapshot?.observations ?? []
+          }
+          broadcast({ type: 'review_progress', trigger, mission: await missionControl() })
+        },
+        onEvidence: async (evidence) => {
+          const observation = reviewObservation(evidence)
+          if (!observation || !reviewSnapshot?.hasRunningExperience) return
+          if (reviewSnapshot.observations.some((existing) => existing.message === observation.message)) return
+          reviewSnapshot = {
+            ...reviewSnapshot,
+            observations: [...reviewSnapshot.observations, observation].slice(-6)
+          }
+          broadcast({ type: 'review_progress', trigger, mission: await missionControl() })
+        }
       })
       lastResult = result
       lastRecommendation = result.report?.recommendation
-      broadcast({ type: 'verification_completed', trigger, result })
-      if (result.report?.recommendation === 'needs_attention' && previousRecommendation !== 'needs_attention') {
-        broadcast({ type: 'attention_required', report: result.report })
+      await new Promise<void>((resolve) => setTimeout(resolve, 500))
+      reviewSnapshot = undefined
+      const mission = await missionControl()
+      const report = result.report ? mission.recentReports[0] : undefined
+      broadcast({ type: 'verification_completed', trigger, mission, report })
+      if (report?.outcome === 'needs_attention' && previousRecommendation !== 'needs_attention') {
+        broadcast({ type: 'attention_required', report })
       }
       return result
+    } catch (error: unknown) {
+      reviewSnapshot = {
+        stage: reviewSnapshot?.stage ?? 'understanding',
+        hasRunningExperience: Boolean(connection?.targetUrl),
+        paused: true,
+        observations: reviewSnapshot?.observations ?? []
+      }
+      broadcast({ type: 'verification_paused', trigger, mission: await missionControl() })
+      throw error
     } finally {
       verificationRunning = false
       if (queuedChangeVerification) {
@@ -111,10 +220,24 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     if (!connection?.watchChanges) return
     if (changeTimer) clearTimeout(changeTimer)
     changeTimer = setTimeout(() => {
-      void verifyConnectedProject('change').catch((error: unknown) => {
-        broadcast({ type: 'watcher_error', message: error instanceof Error ? error.message : 'Background verification failed.' })
+      void verifyConnectedProject('change').catch(() => {
+        broadcast({ type: 'watcher_error' })
       })
     }, changeDebounceMs)
+  }
+
+  const refreshChangedProject = () => {
+    if (!connection?.watchChanges) return
+    if (changeRefreshTimer) clearTimeout(changeRefreshTimer)
+    const projectPath = connection.projectPath
+    changeRefreshTimer = setTimeout(() => {
+      void learnProject(projectPath)
+        .then(async () => {
+          if (!connection || connection.projectPath !== projectPath) return
+          broadcast({ type: 'change_detected', mission: await missionControl() })
+        })
+        .catch(() => broadcast({ type: 'watcher_error' }))
+    }, 180)
   }
 
   const startWatcher = () => {
@@ -124,12 +247,12 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
       watcher = watch(connection.projectPath, { recursive: true }, (_eventType, filename) => {
         const path = filename?.toString() ?? ''
         if (!path || shouldIgnorePath(path)) return
-        broadcast({ type: 'change_detected', path })
+        refreshChangedProject()
         scheduleChangeVerification()
       })
-      watcher.on('error', (error) => broadcast({ type: 'watcher_error', message: error.message }))
-    } catch (error: unknown) {
-      broadcast({ type: 'watcher_error', message: error instanceof Error ? error.message : 'Project watcher could not start.' })
+      watcher.on('error', () => broadcast({ type: 'watcher_error' }))
+    } catch {
+      broadcast({ type: 'watcher_error' })
     }
   }
 
@@ -144,7 +267,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     lastResult = undefined
     lastRecommendation = undefined
     startWatcher()
-    broadcast({ type: 'connected', connection })
+    broadcast({ type: 'connected', mission: await missionControl() })
     return connection
   }
 
@@ -153,20 +276,19 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     const targetUrl = await detectLocalTargetUrl(port)
     if (!targetUrl) return
     connection = { ...connection, targetUrl }
-    broadcast({ type: 'connected', connection })
+    broadcast({ type: 'connected', mission: await missionControl() })
   }
 
-  const refreshProjectUnderstanding = async () => {
-    if (!connection) return
-    const learned = await learnConnectedProject(connection.projectPath)
-    connection = connectedProjectFromLearning(learned, connection)
-    broadcast({ type: 'connected', connection })
+  const missionControl = async (): Promise<MissionControl> => {
+    if (!connection) throw new Error('Start Verion from a project before viewing its briefing.')
+    const { memory } = await learnProject(connection.projectPath)
+    return createMissionControl(memory, reviewSnapshot)
   }
 
   const server = createServer(async (request, response) => {
     try {
       if (request.method === 'GET' && request.url === '/api/connection') {
-        return sendJson(response, 200, { connection })
+        return sendJson(response, 200, { mission: connection ? await missionControl() : undefined })
       }
 
       if (request.method === 'GET' && request.url === '/api/status') {
@@ -191,7 +313,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
         const targetUrl = readOptionalTargetUrl(body)
         const watchChanges = body.watchChanges !== false
         await connectProject(projectPath, targetUrl, watchChanges)
-        return sendJson(response, 200, { connection })
+        return sendJson(response, 200, { mission: await missionControl() })
       }
 
       if (request.method === 'POST' && request.url === '/api/projects/disconnect') {
@@ -211,13 +333,18 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
           ...connection,
           memory: { ...connection.memory, onboardingRequired: false, learnedAt: memory.updatedAt }
         }
-        broadcast({ type: 'connected', connection })
-        return sendJson(response, 200, { connection })
+        broadcast({ type: 'connected', mission: await missionControl() })
+        return sendJson(response, 200, { mission: await missionControl() })
       }
 
       if (request.method === 'POST' && request.url === '/api/verify') {
         const result = await verifyConnectedProject('manual')
-        return sendJson(response, 200, result)
+        if (!result) throw new Error('Verification did not return a release decision.')
+      const mission = await missionControl()
+        return sendJson(response, 200, {
+          mission,
+          report: result.report ? mission.recentReports[0] : undefined
+        })
       }
 
       const evidenceId = request.method === 'GET' ? screenshotEvidenceId(request.url) : undefined
@@ -337,6 +464,263 @@ function connectedProjectFromLearning(learned: LearnedProject, connection: Pick<
       state: memoryState
     }
   }
+}
+
+function createMissionControl(memory: ProjectMemory, reviewSnapshot?: ReviewSnapshot): MissionControl {
+  const reports = memory.releaseReports.slice(0, 3).map((report) => missionReport(report))
+  const latestReport = reports[0]
+  const recentChanges = missionChangeGroups(memory.recentChanges)
+  const likelyImpact = missionLikelyImpact(memory)
+  return {
+    project: {
+      name: memory.profile.name,
+      understanding: missionUnderstanding(memory.understanding)
+    },
+    onboardingRequired: !memory.onboardingCompletedAt,
+    hasChangeBaseline: Boolean(memory.profile.lastVerifiedAt || memory.recentChanges.length > 0),
+    likelyImpact,
+    recentChanges,
+    knownUserJourneys: missionJourneys(memory.knownUserJourneys),
+    currentStatus: missionStatus(Boolean(reviewSnapshot && !reviewSnapshot.paused), latestReport),
+    recentReports: reports,
+    review: reviewSnapshot ? missionReview(reviewSnapshot, recentChanges) : undefined
+  }
+}
+
+function missionReview(snapshot: ReviewSnapshot, changes: MissionControl['recentChanges']): MissionReview {
+  const order: ReviewStage[] = ['understanding', 'reviewing_changes', 'checking_product', 'making_decision']
+  const currentIndex = order.indexOf(snapshot.stage)
+  const changedAreas = changes.slice(0, 3).map((change) => change.label)
+  const stateFor = (stage: ReviewStage): MissionReview['steps'][number]['state'] => {
+    const index = order.indexOf(stage)
+    if (snapshot.paused && index === currentIndex) return 'paused'
+    if (index < currentIndex) return 'completed'
+    if (index === currentIndex) return 'current'
+    return 'next'
+  }
+  const productCopy = snapshot.hasRunningExperience
+    ? 'Looking through the running experience and the paths people rely on.'
+    : 'Reviewing the project paths Verion can inspect right now.'
+
+  return {
+    steps: [
+      { title: 'Understanding this project', description: 'Verion refreshed its picture of the product and the parts that matter.', state: stateFor('understanding') },
+      { title: 'Reviewing what changed', description: changedAreas.length > 0 ? `Reviewing ${joinPlainLanguage(changedAreas)}.` : 'Verion compared the current project with what it already knows.', state: stateFor('reviewing_changes') },
+      { title: 'Checking the product', description: productCopy, state: stateFor('checking_product') },
+      { title: 'Making a release decision', description: snapshot.stage === 'making_decision' ? 'Bringing the review together into one release recommendation.' : 'Verion will bring the observations together into one clear recommendation.', state: stateFor('making_decision') }
+    ],
+    changes: changedAreas,
+    hasRunningExperience: snapshot.hasRunningExperience,
+    observations: snapshot.hasRunningExperience ? snapshot.observations.slice(-6) : undefined,
+    paused: snapshot.paused,
+    message: snapshot.paused ? 'Verion could not finish this review. Check that the project is ready, then try again.' : undefined
+  }
+}
+
+function reviewObservation(evidence: Evidence): ReviewObservation | undefined {
+  const data = record(evidence.data)
+  if (evidence.kind === 'browser_exploration') {
+    if (data.status === 'failed') return { tone: 'warning', message: 'The running app could not be opened.' }
+    const status = numberValue(data.status)
+    if (status && status >= 400) return httpObservation(status, evidence.location?.url)
+    return { tone: 'success', message: loadedObservation(data.title, evidence.location?.url) }
+  }
+
+  if (evidence.kind === 'console_log' && data.level === 'error') {
+    return { tone: 'warning', message: 'Console error detected.' }
+  }
+
+  if (evidence.kind === 'network_log') {
+    const status = numberValue(data.status)
+    if (status && status >= 400) return httpObservation(status, evidence.location?.url)
+    if (typeof data.failure === 'string' && data.failure.length > 0) {
+      return { tone: 'warning', message: 'An app request did not complete.' }
+    }
+  }
+
+  return undefined
+}
+
+function httpObservation(status: number, source?: string): ReviewObservation {
+  const action = namedProductAction(source)
+  return {
+    tone: 'warning',
+    message: action ? `${action} returned HTTP ${status}.` : `An app request returned HTTP ${status}.`
+  }
+}
+
+function loadedObservation(title: unknown, source?: string): string {
+  const action = namedProductAction(typeof title === 'string' ? title : undefined) ?? namedProductAction(source)
+  return action ? `${action} loaded.` : 'The running app loaded.'
+}
+
+function namedProductAction(source?: string): string | undefined {
+  const value = source?.toLowerCase() ?? ''
+  if (/checkout|payment/.test(value)) return 'Checkout'
+  if (/billing|subscription/.test(value)) return 'Billing'
+  if (/profile|account/.test(value)) return 'Profile'
+  if (/dashboard/.test(value)) return 'Dashboard'
+  if (/sign[ -]?in|login|log-in/.test(value)) return 'Sign-in'
+  return undefined
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function joinPlainLanguage(values: string[]): string {
+  if (values.length === 1) return values[0]
+  if (values.length === 2) return `${values[0]} and ${values[1]}`
+  return `${values.slice(0, -1).join(', ')}, and ${values.at(-1)}`
+}
+
+function missionUnderstanding(understanding: ProjectUnderstanding): MissionControl['project']['understanding'] {
+  const items = (category: string, values: ProjectUnderstandingItem[]) => values.slice(0, 12).map(({ label }, index) => ({ id: `${category}-${index + 1}`, label }))
+  return {
+    summary: understanding.summary,
+    technologies: understanding.technologies.map(({ label, kind }, index) => ({ id: `technology-${index + 1}`, label, kind })),
+    productAreas: understanding.productAreas,
+    applicationType: understanding.applicationType,
+    authentication: understanding.authentication,
+    payments: understanding.payments,
+    database: understanding.database,
+    framework: understanding.framework,
+    userJourneys: items('journey', understanding.userJourneys),
+    criticalBusinessFlows: items('flow', understanding.criticalBusinessFlows),
+    importantPages: items('page', understanding.importantPages),
+    importantApis: items('api', understanding.importantApis)
+  }
+}
+
+function missionReport(report: StoredReleaseReport): MissionReport {
+  const rootCause = customerReportCopy(report.rootCause, 'The review could not identify a clear release cause.')
+  const reasons = uniqueCustomerReasons(report.reasons)
+  return {
+    id: report.id,
+    outcome: recommendationToMissionStatus(report.recommendation),
+    confidence: report.confidence,
+    headline: customerReportCopy(report.headline, 'Release decision'),
+    rootCause,
+    reasons,
+    nextAction: customerReportCopy(report.nextAction, 'Verify again when the project is ready.'),
+    completedAt: report.completedAt
+  }
+}
+
+function uniqueCustomerReasons(reasons: string[]): string[] {
+  const seen = new Set<string>()
+  return reasons.flatMap((reason) => {
+    const copy = customerReportCopy(reason, '')
+    const key = copy.toLowerCase()
+    if (!copy || seen.has(key)) return []
+    seen.add(key)
+    return [copy]
+  }).slice(0, 3)
+}
+
+function customerReportCopy(value: string, fallback: string): string {
+  const curated = value
+    .replace(/https?:\/\/\S+/gi, 'the running product')
+    .replace(/(?:^|\s)(?:\.?\.?\/)?(?:[\w.-]+\/)+[\w.-]+\.(?:[cm]?[jt]sx?|json|prisma)(?=$|[\s),.:])/gi, ' a source file')
+    .replace(/\b(?:evidence\s*(?:id|#)?\s*[:#-]?\s*\w+|[a-z][\w-]*:\d{4}-\d{2}-\d{2}[\w:-]*)\b/gi, 'review detail')
+    .replace(/\b(?:Playwright|ServX|Semgrep|GPT|scanner|producer|Context Capsule|Repository Graph|AST|parser|stack trace|raw log|logs?)\b/gi, 'review')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+  return curated || fallback
+}
+
+function recommendationToMissionStatus(recommendation: ReleaseRecommendation): MissionReport['outcome'] {
+  if (recommendation === 'ready_to_ship') return 'ready_to_ship'
+  if (recommendation === 'needs_attention') return 'needs_attention'
+  return 'inconclusive'
+}
+
+function missionStatus(reviewing: boolean, report?: MissionReport): MissionControl['currentStatus'] {
+  if (reviewing) return { kind: 'reviewing', label: 'Reviewing now', description: 'Verion is looking through the latest version.' }
+  if (!report) return { kind: 'ready_for_review', label: 'Ready for review', description: 'Verion is ready to review this project when you are.' }
+  if (report.outcome === 'ready_to_ship') return { kind: 'ready_to_ship', label: 'Ready to ship', description: 'The last review found no reason to hold this release.' }
+  if (report.outcome === 'needs_attention') return { kind: 'needs_attention', label: 'Needs attention', description: 'The last review found something to resolve before you ship.' }
+  return { kind: 'inconclusive', label: 'Inconclusive', description: 'The last review could not make a clear release decision.' }
+}
+
+function missionJourneys(journeys: KnownUserJourney[]): MissionControl['knownUserJourneys'] {
+  return [...journeys]
+    .sort((left, right) => Number(right.source === 'browser') - Number(left.source === 'browser') || right.lastObservedAt.localeCompare(left.lastObservedAt))
+    .slice(0, 8)
+    .map(({ label, source }, index) => ({ id: `journey-${index + 1}`, label, source }))
+}
+
+function missionChangeGroups(changes: RecentProjectChange[]): MissionControl['recentChanges'] {
+  const groups: Array<{ id: string; label: string; description: string }> = []
+  for (const change of changes) {
+    const files = [...change.added, ...change.modified, ...change.removed]
+    for (const group of changeGroupsFor(files)) {
+      if (groups.some((candidate) => candidate.id === group.id)) continue
+      groups.push(group)
+      if (groups.length === 3) return groups
+    }
+  }
+  return groups
+}
+
+function missionLikelyImpact(memory: ProjectMemory): MissionControl['likelyImpact'] {
+  const latestChange = memory.recentChanges[0]
+  const lastVerifiedAt = memory.profile.lastVerifiedAt
+  if (!latestChange || (lastVerifiedAt && latestChange.detectedAt <= lastVerifiedAt)) return []
+  const changedPaths = [...latestChange.added, ...latestChange.modified, ...latestChange.removed]
+  const labels = inferLikelyImpact(changedPaths, memory.understanding, memory.knownUserJourneys)
+  return labels.map((label, index) => ({ id: `impact-${index + 1}`, label }))
+}
+
+function inferLikelyImpact(paths: string[], understanding: ProjectUnderstanding, journeys: KnownUserJourney[]): string[] {
+  if (paths.length === 0) return []
+  const joinedPaths = paths.join(' ').toLowerCase()
+  const labels: string[] = []
+  const add = (label: string, supported: boolean) => {
+    if (supported && !labels.some((candidate) => candidate.toLowerCase() === label.toLowerCase())) labels.push(label)
+  }
+
+  add('Billing', /(?:^|[\\/_-])(?:billing|checkout|subscription|payment|invoice|stripe)(?:[\\/_-]|$)/.test(joinedPaths))
+  add('Authentication', /(?:^|[\\/_-])(?:auth|sign-in|signin|sign-up|signup|login|session|clerk|account)(?:[\\/_-]|$)/.test(joinedPaths))
+  add('Dashboard', /(?:^|[\\/_-])(?:dashboard|workspace|admin)(?:[\\/_-]|$)/.test(joinedPaths))
+  add('Settings', /(?:^|[\\/_-])(?:settings|preferences|profile)(?:[\\/_-]|$)/.test(joinedPaths))
+
+  const learnedLabels = [
+    ...understanding.productAreas,
+    ...understanding.userJourneys.map((item) => item.label),
+    ...journeys.map((journey) => journey.label)
+  ]
+  for (const label of learnedLabels) {
+    if (!isSpecificProductLabel(label) || labels.some((candidate) => candidate.toLowerCase() === label.toLowerCase())) continue
+    const signal = label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter((part) => part.length > 2)
+    if (signal.length > 0 && signal.some((part) => new RegExp(`(?:^|[\\/_-])${escapeRegExp(part)}(?:[\\/_-]|$)`).test(joinedPaths))) add(label, true)
+  }
+
+  return labels.slice(0, 3)
+}
+
+function isSpecificProductLabel(label: string): boolean {
+  return !/^(api|home|detail|application)$/i.test(label.trim())
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function changeGroupsFor(files: string[]): Array<{ id: string; label: string; description: string }> {
+  const groups: Array<{ id: string; label: string; description: string }> = []
+  const add = (id: string, label: string, description: string, condition: boolean) => {
+    if (condition && !groups.some((group) => group.id === id)) groups.push({ id, label, description })
+  }
+  add('new-areas', 'New product areas', 'New product areas are ready to be reviewed.', files.some((file) => /(?:^|\/)(?:app|pages|routes)\/.+\/(?:page|route)\.|(?:^|\/)(?:app|pages|routes)\/.+\.(?:tsx?|jsx?)$/.test(file)))
+  add('interface', 'Interface changes', 'Interface changes are waiting to be checked.', files.some((file) => /\.(?:css|scss|sass|less)$/.test(file) || /(?:component|view|layout|page)\.(?:tsx?|jsx?)$/i.test(file)))
+  add('setup', 'Project setup changes', 'Project setup changed since the last review.', files.some((file) => /(?:^|\/)(?:package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|vite\.config|next\.config|tsconfig|eslint|prettier)/.test(file)))
+  add('application', 'Application code changes', 'Application code changed since the last review.', files.length > 0)
+  return groups
 }
 
 function resolveHomePath(path: string): string {
