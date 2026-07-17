@@ -22,6 +22,10 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
 
 ## Done
 
+- [x] **P0 — Design and implement project-owned local memory**
+  Status: Done
+  Dependencies: First-run project understanding; target-agnostic verification result.
+
 - [x] **P0 — Implement first-run project understanding and local memory**
   Status: Done
   Dependencies: Launch-directory project connection; project discovery; repository graph.

@@ -239,6 +239,26 @@ The product must feel as though it has genuinely learned the developer's softwar
 
 Unchanged projects return immediately with their saved understanding; source changes cause it to be refreshed before the next verification. `.verion` is excluded from discovery and Git by default. First-run UI describes detected technologies, product areas, and route/API counts in human language, then marks onboarding complete only after the developer sees it.
 
+## 2026-07-16 — Project-Owned Learning Record
+
+**Decision**
+
+Extend `.verion/project-memory.json` into the project’s durable local learning record. It stores a profile, technologies, routes, inferred and observed user journeys, learned product understanding, recent file-path changes, bounded verification history, release reports, and known issue state.
+
+**Reason**
+
+Verion should become more useful as it reviews a project without turning project knowledge into a cloud service or an opaque global cache. A project-owned record keeps the history inspectable, portable with the working directory, and separate from Verion’s GPT diagnosis boundary.
+
+**Alternatives**
+
+- Store only the latest discovery result and discard all verification history.
+- Keep an unbounded raw evidence archive inside the project.
+- Upload a central project-memory profile for each developer.
+
+**Consequences**
+
+Memory is bounded, contains no copied source, screenshots, credentials, or browser-session data, and is never sent to GPT or exposed by the local dashboard server. A completed verification records only durable outcome data and can reopen, increment, or resolve known issue records. See `LOCAL_MEMORY.md` for the complete schema and lifecycle.
+
 **Consequences**
 
 The product experience is specified in `.ulpi/design/release-journey.md`. The lightweight Verion presence and review trail communicate attention and judgment. Every visible screen must preserve the emotional sequence and use product language only.

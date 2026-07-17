@@ -46,10 +46,12 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Added the first-run dashboard experience: Verion introduces itself, reveals real project discoveries progressively in plain language, summarizes its understanding, and remembers the project only after the developer continues.
 - Added a durable local-memory lifecycle: unchanged projects reuse their saved understanding, source changes rebuild it before verification, and `.verion` is excluded from both discovery and version control.
 - Validated the first-run and returning-project API flow against the Verion project: persisted memory, completed onboarding, and a restart that reused the saved understanding.
+- Designed and implemented Version 2 of project-owned local memory in `.verion/project-memory.json`: project profile, technologies, routes, user journeys, learned understanding, recent changes, verification history, release reports, and known issues.
+- Made every completed verification improve local memory while keeping it bounded and private; the memory file is never sent to GPT or exposed through a dashboard endpoint.
 
 ## In-Progress Work
 
-- Translating the remaining verification and release-report states into the approved customer-facing journey. The first-run understanding and project-home states are complete.
+- Translating the remaining verification and release-report states into the approved customer-facing journey. The first-run understanding, project-home, and persistent local-memory foundation are complete.
 
 ## Blockers
 
@@ -58,7 +60,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 ## Next Steps
 
 1. Validate the dashboard review and release decision against a running, arbitrary project with `OPENAI_API_KEY` configured.
-2. Verify watcher behavior against an external project target and release recommendation changes.
+2. Verify watcher behavior against an external project target, including the local recent-changes and verification-history update.
 3. Implement the approved Fix Packet and verify-again handoff only after the release decision is stable.
 
 ## Important Decisions
