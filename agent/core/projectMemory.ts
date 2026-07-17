@@ -479,7 +479,7 @@ function hasExpandedUnderstanding(understanding: ProjectUnderstanding): boolean 
     && Array.isArray(understanding.importantApis)
 }
 
-async function readProjectMemory(projectRoot: string): Promise<ProjectMemory | undefined> {
+export async function readProjectMemory(projectRoot: string): Promise<ProjectMemory | undefined> {
   try {
     const value = JSON.parse(await readFile(memoryFilePath(projectRoot), 'utf8')) as unknown
     if (isProjectMemory(value)) return normalizeCurrentMemory(value)

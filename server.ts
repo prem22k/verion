@@ -6,6 +6,8 @@ import { dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer as createViteServer } from 'vite'
 import { completeProjectOnboarding, learnProject, type LearnedProject } from './agent/core/projectMemory'
+import { FixPacketIncompleteError, launchInteractiveCodex, createFixPacket, writeFixPacket, type FixPacketLauncher } from './agent/core/fixPacket'
+import { readProjectMemory } from './agent/core/projectMemory'
 import { getGptDiagnosisStatus } from './agent/core/runtimeConfig'
 import type { Evidence, KnownUserJourney, ProjectDiscovery, ProjectMemory, ProjectTechnology, ProjectUnderstanding, ProjectUnderstandingItem, ProjectVerificationResult, RecentProjectChange, ReleaseConfidence, ReleaseRecommendation, StoredReleaseReport } from './agent/core/types'
 import { runProjectVerification } from './agent/runProjectVerification'
@@ -22,6 +24,7 @@ export type StartVerionServerOptions = {
   projectPath?: string
   targetUrl?: string
   watchChanges?: boolean
+  fixPacketLauncher?: FixPacketLauncher
 }
 
 type ConnectedProject = {
@@ -129,6 +132,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
   let queuedChangeVerification = false
   let lastResult: ProjectVerificationResult | undefined
   let lastRecommendation: ReleaseRecommendation | undefined
+  let lastVerificationReportId: string | undefined
   let reviewSnapshot: ReviewSnapshot | undefined
 
   const broadcast = (event: AgentEvent) => {
@@ -193,6 +197,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
       reviewSnapshot = undefined
       const mission = await missionControl()
       const report = result.report ? mission.recentReports[0] : undefined
+      lastVerificationReportId = report?.id
       broadcast({ type: 'verification_completed', trigger, mission, report })
       if (report?.outcome === 'needs_attention' && previousRecommendation !== 'needs_attention') {
         broadcast({ type: 'attention_required', report })
@@ -266,6 +271,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     })
     lastResult = undefined
     lastRecommendation = undefined
+    lastVerificationReportId = undefined
     startWatcher()
     broadcast({ type: 'connected', mission: await missionControl() })
     return connection
@@ -321,6 +327,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
         connection = undefined
         lastResult = undefined
         lastRecommendation = undefined
+        lastVerificationReportId = undefined
         broadcast({ type: 'disconnected' })
         return sendJson(response, 200, { connection: null })
       }
@@ -345,6 +352,26 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
           mission,
           report: result.report ? mission.recentReports[0] : undefined
         })
+      }
+
+      if (request.method === 'POST' && request.url === '/api/reports/fix') {
+        if (!connection) throw new Error('Start Verion from a project before preparing a repair.')
+        const body = await readJsonBody(request)
+        const reportId = readRequiredString(body, 'reportId')
+        const memory = await readProjectMemory(connection.projectPath)
+        const report = memory?.releaseReports.find((candidate) => candidate.id === reportId)
+        if (!report || report.recommendation !== 'needs_attention' || !lastResult || lastVerificationReportId !== report.id) {
+          return sendJson(response, 200, { status: 'needs_review' })
+        }
+        try {
+          const packet = await writeFixPacket(connection.projectPath, createFixPacket(report, lastResult.evidence, lastResult.capsule))
+          const launcher = options.fixPacketLauncher ?? launchInteractiveCodex
+          const launched = await launcher({ projectPath: connection.projectPath, packetPath: packet.path })
+          return sendJson(response, 200, { status: launched.opened ? 'opened' : 'unavailable' })
+        } catch (error: unknown) {
+          if (error instanceof FixPacketIncompleteError) return sendJson(response, 200, { status: 'needs_review' })
+          throw error
+        }
       }
 
       const evidenceId = request.method === 'GET' ? screenshotEvidenceId(request.url) : undefined
