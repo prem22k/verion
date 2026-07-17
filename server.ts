@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { homedir } from 'node:os'
 import { dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createServer as createViteServer } from 'vite'
+import { createServer as createViteServer, type ViteDevServer } from 'vite'
 import { completeProjectOnboarding, learnProject, readProjectMemory, type LearnedProject } from './agent/core/projectMemory'
 import { FixPacketIncompleteError, launchInteractiveCodex, createFixPacket, writeFixPacket, type FixPacketLauncher } from './agent/core/fixPacket'
 import { getGptDiagnosisStatus } from './agent/core/runtimeConfig'
@@ -100,6 +100,9 @@ type MissionControl = {
       | 'criticalBusinessFlows'
       | 'importantPages'
       | 'importantApis'
+      | 'routeCount'
+      | 'apiCount'
+      | 'model'
     >
   }
   onboardingRequired: boolean
@@ -107,6 +110,18 @@ type MissionControl = {
   likelyImpact: Array<{ id: string; label: string }>
   recentChanges: Array<{ id: string; label: string; description: string }>
   knownUserJourneys: Array<{ id: string; label: string; source: 'project' | 'browser' }>
+  localMemory: {
+    firstLearnedAt: string
+    lastLearnedAt: string
+    lastVerifiedAt?: string
+    knownJourneyCount: number
+    reviewCount: number
+  }
+  deepSecurity: {
+    status: 'not_configured' | 'reviewing' | 'completed' | 'concern' | 'unavailable'
+    label: string
+    description: string
+  }
   currentStatus: { kind: MissionReleaseStatus; label: string; description: string }
   recentReports: MissionReport[]
   review?: MissionReview
@@ -125,7 +140,7 @@ type AgentEvent =
 
 export async function startVerionServer(options: StartVerionServerOptions = {}) {
   const port = options.port ?? 5173
-  const vite = await createViteServer({ root: dashboardRoot, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'spa' })
+  let vite: ViteDevServer
   const eventClients = new Set<ServerResponse>()
   let connection: ConnectedProject | undefined
   let watcher: FSWatcher | undefined
@@ -410,6 +425,19 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
     }
   })
 
+  // Vite still injects its browser client in middleware mode. Attach that
+  // client's WebSocket endpoint to Verion's own loopback server so the
+  // dashboard never tries (and fails) to connect to Vite's default :24678.
+  vite = await createViteServer({
+    root: dashboardRoot,
+    server: {
+      middlewareMode: true,
+      hmr: false,
+      ws: { server }
+    },
+    appType: 'spa'
+  })
+
   await new Promise<void>((resolveServer) => server.listen(port, host, resolveServer))
   if (options.projectPath) await connectProject(options.projectPath, options.targetUrl, options.watchChanges !== false)
   return {
@@ -540,6 +568,14 @@ function createMissionControl(memory: ProjectMemory, reviewSnapshot?: ReviewSnap
     likelyImpact,
     recentChanges,
     knownUserJourneys: missionJourneys(memory.knownUserJourneys),
+    localMemory: {
+      firstLearnedAt: memory.profile.firstLearnedAt,
+      lastLearnedAt: memory.profile.lastLearnedAt,
+      lastVerifiedAt: memory.profile.lastVerifiedAt,
+      knownJourneyCount: memory.knownUserJourneys.length,
+      reviewCount: memory.verificationHistory.length
+    },
+    deepSecurity: missionDeepSecurity(memory, reviewSnapshot),
     currentStatus: missionStatus(Boolean(reviewSnapshot && !reviewSnapshot.paused), latestReport),
     recentReports: reports,
     review: reviewSnapshot ? missionReview(reviewSnapshot, recentChanges) : undefined
@@ -666,18 +702,50 @@ function missionUnderstanding(understanding: ProjectUnderstanding): MissionContr
   const items = (category: string, values: ProjectUnderstandingItem[]) => values.slice(0, 12).map(({ label }, index) => ({ id: `${category}-${index + 1}`, label }))
   return {
     summary: understanding.summary,
-    technologies: understanding.technologies.map(({ label, kind }, index) => ({ id: `technology-${index + 1}`, label, kind })),
+    technologies: understanding.technologies.map(({ id, label, kind }) => ({ id, label, kind })),
     productAreas: understanding.productAreas,
     applicationType: understanding.applicationType,
     authentication: understanding.authentication,
     payments: understanding.payments,
     database: understanding.database,
     framework: understanding.framework,
+    routeCount: understanding.routeCount,
+    apiCount: understanding.apiCount,
+    model: understanding.model ? {
+      thesis: understanding.model.thesis,
+      keyEntities: items('entity', understanding.model.keyEntities),
+      priorityJourneys: understanding.model.priorityJourneys.slice(0, 4).map(({ label, reason }, index) => ({ id: `model-journey-${index + 1}`, label, reason })),
+      reviewFocus: understanding.model.reviewFocus,
+      updatedAt: understanding.model.updatedAt
+    } : undefined,
     userJourneys: items('journey', understanding.userJourneys),
     criticalBusinessFlows: items('flow', understanding.criticalBusinessFlows),
     importantPages: items('page', understanding.importantPages),
     importantApis: items('api', understanding.importantApis)
   }
+}
+
+function missionDeepSecurity(memory: ProjectMemory, snapshot?: ReviewSnapshot): MissionControl['deepSecurity'] {
+  const status = snapshot?.deepSecurityReviewStatus
+  if (snapshot?.deepSecurityReviewStarted && !status) {
+    return { status: 'reviewing', label: 'Reviewing', description: 'Looking for critical security concerns that could affect this release.' }
+  }
+  if (status === 'completed') {
+    return { status: 'completed', label: 'Reviewed', description: 'No critical security concern changed the release decision.' }
+  }
+  if (status === 'concern') {
+    return { status: 'concern', label: 'Needs attention', description: 'A critical security concern is included in the release decision.' }
+  }
+  if (status === 'failed') {
+    return { status: 'unavailable', label: 'Incomplete', description: 'Security review could not finish, so Verion cannot make a complete release call.' }
+  }
+  const wasIncluded = Boolean(memory.verificationHistory[0]?.evidenceCounts.security_review)
+  if (wasIncluded) {
+    return { status: 'completed', label: 'Reviewed', description: 'Deep Security Review was included in the latest release decision.' }
+  }
+  return getDeepSecurityReviewConfig()
+    ? { status: 'not_configured', label: 'Ready', description: 'Critical security concerns will contribute to the same release decision.' }
+    : { status: 'not_configured', label: 'Available', description: 'Enable it when this project needs a deeper critical-concern review.' }
 }
 
 function missionReport(report: StoredReleaseReport): MissionReport {
