@@ -33,7 +33,12 @@ async function main() {
   if (!project) throw new Error('Missing required --project path.')
 
   const targetUrl = optionValue(args, '--url')
-  const result = await runProjectVerification({ projectPath: resolve(project), targetUrl, diagnose: command === 'verify' })
+  const result = await runProjectVerification({
+    projectPath: resolve(project),
+    targetUrl,
+    diagnose: command === 'verify',
+    recordMemory: command === 'verify'
+  })
   const { evidence } = result
   if (command === 'discover') {
     process.stdout.write(`${JSON.stringify({ evidence }, null, 2)}\n`)

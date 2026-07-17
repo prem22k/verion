@@ -88,7 +88,8 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
       const result = await runProjectVerification({
         projectPath: connection.projectPath,
         targetUrl: connection.targetUrl,
-        diagnose: true
+        diagnose: true,
+        trigger
       })
       lastResult = result
       lastRecommendation = result.report?.recommendation
