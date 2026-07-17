@@ -37,7 +37,7 @@ npm run dev
 
 For packaged use, run `verion` from the root of the application you want to verify. The launch directory is the approved project scope; the dashboard never asks you to paste a filesystem path. Verion automatically looks for a conventional localhost development server. If it cannot find one, use the advanced fallback: `verion --url http://127.0.0.1:3000`.
 
-When developing Verion itself, `npm run dev` starts the agent against the current directory. Set `OPENAI_API_KEY` in `.env` before running the command. Verion loads `.env` when its local agent or CLI starts, so restart it after changing the file. `VERION_OPENAI_MODEL` is optional. The command emits `{ evidence, capsule, report }`; GPT receives only the Context Capsule.
+When developing Verion itself, `npm run dev` starts the agent against the current directory and opens the local project briefing. Set `OPENAI_API_KEY` in `.env` before running the command to let Verion turn its local project inventory into a structured project thesis and make release decisions. The project thesis receives only a bounded outline of framework, dependency names, route names, filenames, and local inferences; source files, secrets, browser material, credentials, and local memory stay out of that request. Verion loads `.env` when its local agent or CLI starts, so restart it after changing the file. `VERION_OPENAI_MODEL` is optional. Release diagnosis still receives only the Context Capsule.
 
 ### Built-in security review
 

@@ -28,6 +28,22 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
   Status: Done
   Dependencies: Existing live review; bounded release report; customer-facing journey.
 
+- [x] **P0 — Make Verify always resolve to an honest user-facing state**
+  Status: Done
+  Dependencies: Existing verification result; release report persistence; Mission Control action state.
+
+- [x] **P0 — Make the local dashboard startup browser-clean**
+  Status: Done
+  Dependencies: Complete local dashboard and agent startup path.
+
+- [x] **P0 — Make unavailable release reasoning actionable**
+  Status: Done
+  Dependencies: Structured diagnosis fallback; local project memory; dashboard connection state.
+
+- [x] **P0 — Make the current release call the whole post-review experience**
+  Status: Done
+  Dependencies: Bounded release report; Mission Control dashboard.
+
 - [ ] **P1 — Validate the optional Deep security review against an authorized local service**
   Status: Doing
   Dependencies: Loopback service; explicit approved GitHub repository identity; available local service credentials.

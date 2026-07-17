@@ -62,6 +62,10 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Replaced landing-page-only browser observation with repository-guided exploration of a bounded set of known static journeys: sign-in, dashboard, billing, and settings when present. It inspects navigation and forms without clicking arbitrarily, entering data, or submitting mutations.
 - Polished the customer journey into one intentional release loop: Understand, Review, Explain, Fix, Verify the repair, and Ready to ship. The dashboard adds only a quiet orientation rail and state-specific copy; no new workflow or backend capability was added.
 - Completed a Build Week judge-pass UX review and corrected the largest demo risk: a completed release decision now appears before Mission Control context, with truthful pre-fix, repair-watch, and repair-review phase language.
+- Replaced the verbose no-report dashboard with a compact Project understood opening and one working Verify action. A diagnosis failure now produces a persisted Inconclusive decision instead of returning the UI to an unchanged ready state; disconnected dashboards offer Reconnect rather than a dead Verify action.
+- Corrected the normal local dashboard runtime so Vite's browser client uses Verion's loopback WebSocket endpoint rather than failing against Vite's unused default port, and added the Verion favicon.
+- Made release-reasoning failures explicit and actionable instead of a generic Inconclusive report, collapsed duplicate inconclusive reports, and bounded dashboard reconnection after the local agent stops.
+- Simplified the post-review dashboard to one current release decision and its immediate next action. Project details and historical duplicate-report rows no longer compete with an active decision.
 
 ## In-Progress Work
 
