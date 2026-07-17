@@ -48,6 +48,14 @@ export type ProjectUnderstandingItem = {
   label: string
 }
 
+export type ProjectModelUnderstanding = {
+  thesis: string
+  keyEntities: ProjectUnderstandingItem[]
+  priorityJourneys: Array<ProjectUnderstandingItem & { reason: string }>
+  reviewFocus: string
+  updatedAt: string
+}
+
 export type ProjectUnderstanding = {
   summary: string
   technologies: ProjectTechnology[]
@@ -63,6 +71,8 @@ export type ProjectUnderstanding = {
   criticalBusinessFlows: ProjectUnderstandingItem[]
   importantPages: ProjectUnderstandingItem[]
   importantApis: ProjectUnderstandingItem[]
+  model?: ProjectModelUnderstanding
+  modelAttemptedAt?: string
 }
 
 export type ProjectProfile = {

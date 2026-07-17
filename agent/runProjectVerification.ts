@@ -1,7 +1,7 @@
 import { createContextCapsule } from './core/contextCapsule'
 import { diagnoseContextCapsule } from './core/gptDiagnosis'
 import { learnProject, recordProjectVerification } from './core/projectMemory'
-import type { Evidence, ProjectVerificationResult } from './core/types'
+import type { Evidence, ProjectVerificationResult, ReleaseReport } from './core/types'
 import { BrowserObservationProducer } from './evidence/browserObservationProducer'
 import { DeepSecurityReviewProducer, enforceCriticalSecurityDecision, securityReviewFailureReport } from './evidence/deepSecurityReviewProducer'
 import { RepositoryDiscoveryProducer } from './evidence/repositoryDiscoveryProducer'
@@ -48,12 +48,47 @@ export async function runProjectVerification(request: ProjectVerificationRequest
       }
     } catch (error: unknown) {
       result = {
-      evidence,
-      capsule,
-      diagnosisUnavailable: error instanceof Error ? error.message : 'GPT diagnosis could not complete.'
+        evidence,
+        capsule,
+        report: diagnosisUnavailableReport(evidence, error),
+        diagnosisUnavailable: error instanceof Error ? error.message : 'GPT diagnosis could not complete.'
       }
     }
   }
   if (request.recordMemory !== false) await recordProjectVerification(request.projectPath, result, request.trigger ?? 'cli')
   return result
+}
+
+function diagnosisUnavailableReport(evidence: Evidence[], error: unknown): ReleaseReport {
+  const reason = diagnosisFailureReason(error)
+  return {
+    recommendation: 'inconclusive',
+    confidence: 'limited',
+    headline: 'Inconclusive',
+    rootCause: 'Verion could not complete its release reasoning.',
+    reasons: [reason],
+    evidenceIds: evidence.slice(0, 3).map((item) => item.id),
+    nextAction: diagnosisFailureNextAction(error)
+  }
+}
+
+function diagnosisFailureReason(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : ''
+  if (message.includes('rate-limit')) return 'The release model is temporarily busy. Verion finished the review but cannot make a reliable call yet.'
+  if (message.includes('api key') || message.includes('model access') || message.includes('rejected')) {
+    return 'The configured release model did not accept this review, so Verion will not guess at a release decision.'
+  }
+  if (message.includes('timed out') || message.includes('could not reach')) {
+    return 'Verion could not reach the configured release model before this review timed out.'
+  }
+  return 'The project review finished, but Verion could not turn the observations into a reliable release call.'
+}
+
+function diagnosisFailureNextAction(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : ''
+  if (message.includes('rate-limit')) return 'Try Verify again in a moment.'
+  if (message.includes('api key') || message.includes('model access') || message.includes('rejected')) {
+    return 'Check the local release-model settings, restart Verion, then verify again.'
+  }
+  return 'Check that Verion is ready to make a release decision, then verify again.'
 }

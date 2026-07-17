@@ -1,5 +1,7 @@
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { platform } from 'node:os'
 import { createContextCapsule } from './core/contextCapsule'
 import type { Evidence } from './core/types'
 import { runProjectVerification } from './runProjectVerification'
@@ -26,6 +28,7 @@ async function main() {
       watchChanges: !args.includes('--no-watch')
     })
     process.stdout.write(`Verion is watching ${process.cwd()} at ${server.url}\n`)
+    openDashboard(server.url)
     return
   }
 
@@ -58,6 +61,18 @@ async function main() {
     return
   }
   throw new Error('Usage: verion [--url <running-app-url>] [--port <port>] [--no-watch] | verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path> | verion verify --project <path> [--url <running-app-url>]')
+}
+
+function openDashboard(url: string) {
+  if (process.env.VERION_NO_OPEN === '1') return
+  const command = platform() === 'darwin' ? 'open' : platform() === 'win32' ? 'cmd.exe' : 'xdg-open'
+  const args = platform() === 'win32' ? ['/c', 'start', '', url] : [url]
+  try {
+    const browser = spawn(command, args, { detached: true, stdio: 'ignore' })
+    browser.unref()
+  } catch {
+    // The dashboard URL is still printed when no desktop opener is available.
+  }
 }
 
 main().catch((error: unknown) => {

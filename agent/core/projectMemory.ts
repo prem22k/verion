@@ -3,6 +3,8 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { buildRepositoryGraph } from './repositoryGraph'
 import { discoverProject, resolveProjectFile } from './projectDiscovery'
+import { enrichProjectUnderstanding } from './projectUnderstanding'
+import { getGptDiagnosisStatus } from './runtimeConfig'
 import type { Evidence, KnownIssue, KnownUserJourney, ProjectDiscovery, ProjectFileSnapshot, ProjectMemory, ProjectRoute, ProjectTechnology, ProjectUnderstanding, ProjectUnderstandingItem, ProjectVerificationResult, RecentProjectChange, ReleaseConfidence, ReleaseRecommendation, StoredReleaseReport, VerificationHistoryEntry } from './types'
 
 const memoryDirectoryName = '.verion'
@@ -24,16 +26,18 @@ export async function learnProject(projectPath: string): Promise<LearnedProject>
   const existing = await readProjectMemory(discovery.projectRoot)
   const canReuse = existing?.signature === signature && Object.keys(existing.fileSnapshot).length > 0 && hasExpandedUnderstanding(existing.understanding)
   if (canReuse && existing) {
+    const memory = await enrichRememberedUnderstanding(existing)
     return {
       discovery,
-      memory: { ...existing, discovery },
-      memoryState: existing.onboardingCompletedAt ? 'remembered' : 'first_run'
+      memory: { ...memory, discovery },
+      memoryState: memory.onboardingCompletedAt ? 'remembered' : 'first_run'
     }
   }
 
   const graph = await buildRepositoryGraph(discovery)
   const now = new Date().toISOString()
-  const understanding = await understandProject(discovery)
+  const deterministicUnderstanding = await understandProject(discovery)
+  const understanding = await enrichUnderstanding(discovery, deterministicUnderstanding)
   const memory: ProjectMemory = {
     version: 4,
     profile: {
@@ -65,6 +69,29 @@ export async function learnProject(projectPath: string): Promise<LearnedProject>
   return { discovery, memory, memoryState: existing ? 'updated' : 'first_run' }
 }
 
+async function enrichRememberedUnderstanding(memory: ProjectMemory): Promise<ProjectMemory> {
+  if (memory.understanding.model || memory.understanding.modelAttemptedAt) return memory
+  const understanding = await enrichUnderstanding(memory.discovery, memory.understanding)
+  if (understanding === memory.understanding) return memory
+  const next = { ...memory, understanding, updatedAt: new Date().toISOString() }
+  await writeProjectMemory(next)
+  return next
+}
+
+async function enrichUnderstanding(discovery: ProjectDiscovery, understanding: ProjectUnderstanding): Promise<ProjectUnderstanding> {
+  if (!getGptDiagnosisStatus().configured) return understanding
+  try {
+    const model = await enrichProjectUnderstanding(discovery, understanding)
+    return {
+      ...understanding,
+      ...(model ? { model } : {}),
+      modelAttemptedAt: new Date().toISOString()
+    }
+  } catch {
+    return { ...understanding, modelAttemptedAt: new Date().toISOString() }
+  }
+}
+
 export async function recordProjectVerification(projectPath: string, result: ProjectVerificationResult, trigger: 'manual' | 'change' | 'cli'): Promise<ProjectMemory> {
   const learned = await learnProject(projectPath)
   const memory = learned.memory
@@ -85,11 +112,22 @@ export async function recordProjectVerification(projectPath: string, result: Pro
     updatedAt: completedAt,
     knownUserJourneys: mergeJourneys(memory.knownUserJourneys, browserJourneys(result.evidence, completedAt)),
     verificationHistory: [historyEntry, ...memory.verificationHistory].slice(0, historyLimit),
-    releaseReports: report ? [report, ...memory.releaseReports].slice(0, historyLimit) : memory.releaseReports,
+    releaseReports: report ? prependDistinctReport(memory.releaseReports, report) : memory.releaseReports,
     knownIssues: updateKnownIssues(memory.knownIssues, report, recommendation, completedAt)
   }
   await writeProjectMemory(next)
   return next
+}
+
+function prependDistinctReport(reports: StoredReleaseReport[], report: StoredReleaseReport): StoredReleaseReport[] {
+  const key = releaseReportKey(report)
+  return [report, ...reports.filter((candidate) => releaseReportKey(candidate) !== key)].slice(0, historyLimit)
+}
+
+function releaseReportKey(report: Pick<StoredReleaseReport, 'recommendation' | 'headline' | 'rootCause'>): string {
+  return [report.recommendation, report.headline, report.rootCause]
+    .map((value) => value.trim().toLowerCase().replace(/\s+/g, ' '))
+    .join(':')
 }
 
 export async function completeProjectOnboarding(projectRoot: string): Promise<ProjectMemory | undefined> {
