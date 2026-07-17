@@ -108,6 +108,7 @@ function packetPathFor(report: StoredReleaseReport): string {
 
 function codexCommand(projectPath: string, packetPath: string): string {
   const prompt = `Read the repair brief at ${packetPath}. Do not edit files yet. First inspect or reproduce the issue and explain the smallest safe repair plan. Wait for the developer's explicit approval before writing any files.`
+  if (platform() === 'win32') return `cd /d ${windowsQuote(projectPath)} && codex ${windowsQuote(prompt)}`
   return `cd ${shellQuote(projectPath)} && codex ${shellQuote(prompt)}`
 }
 
@@ -165,6 +166,10 @@ function safeRelativePath(path: string): string {
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`
+}
+
+function windowsQuote(value: string): string {
+  return `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1')}"`
 }
 
 function appleScriptQuote(value: string): string {
