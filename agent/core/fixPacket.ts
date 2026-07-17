@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { platform } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type { ContextCapsule, Evidence, StoredReleaseReport } from './types'
 
@@ -67,10 +67,39 @@ export async function writeFixPacket(projectPath: string, packet: FixPacket): Pr
 }
 
 export async function launchInteractiveCodex(request: FixPacketLaunchRequest): Promise<FixPacketLaunchResult> {
+  if (!await hasCodexCli()) return { opened: false }
   const command = codexCommand(request.projectPath, request.packetPath)
   if (platform() === 'darwin') return openMacTerminal(command)
   if (platform() === 'win32') return openWindowsTerminal(command)
   return openLinuxTerminal(command)
+}
+
+function hasCodexCli(): Promise<boolean> {
+  return new Promise((resolveAvailable) => {
+    let settled = false
+    const finish = (available: boolean) => {
+      if (settled) return
+      settled = true
+      resolveAvailable(available)
+    }
+    try {
+      const child = spawn('codex', ['--version'], { stdio: 'ignore' })
+      const timeout = setTimeout(() => {
+        child.kill()
+        finish(false)
+      }, 2_000)
+      child.once('error', () => {
+        clearTimeout(timeout)
+        finish(false)
+      })
+      child.once('exit', (code) => {
+        clearTimeout(timeout)
+        finish(code === 0)
+      })
+    } catch {
+      finish(false)
+    }
+  })
 }
 
 function packetPathFor(report: StoredReleaseReport): string {
