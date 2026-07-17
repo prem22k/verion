@@ -25,16 +25,19 @@
     "verify": "tsx agent/cli.ts verify"
   },
   "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "tsx": "latest"
+    "simple-icons": "^16.26.0",
+    "tsx": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
+    "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "@types/node": "latest",
     "playwright": "latest",
     "typescript": "latest"
   }
