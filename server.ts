@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { watch, type FSWatcher } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { homedir } from 'node:os'
@@ -8,6 +9,7 @@ import { createServer as createViteServer } from 'vite'
 import { completeProjectOnboarding, learnProject, readProjectMemory, type LearnedProject } from './agent/core/projectMemory'
 import { FixPacketIncompleteError, launchInteractiveCodex, createFixPacket, writeFixPacket, type FixPacketLauncher } from './agent/core/fixPacket'
 import { getGptDiagnosisStatus } from './agent/core/runtimeConfig'
+import { getDeepSecurityReviewConfig } from './agent/evidence/deepSecurityReviewProducer'
 import type { Evidence, KnownUserJourney, ProjectDiscovery, ProjectMemory, ProjectTechnology, ProjectUnderstanding, ProjectUnderstandingItem, ProjectVerificationResult, RecentProjectChange, ReleaseConfidence, ReleaseRecommendation, StoredReleaseReport } from './agent/core/types'
 import { runProjectVerification } from './agent/runProjectVerification'
 
@@ -53,11 +55,13 @@ type MissionReport = {
   completedAt: string
 }
 
-type ReviewStage = 'understanding' | 'reviewing_changes' | 'checking_product' | 'making_decision'
+type ReviewStage = 'understanding' | 'reviewing_changes' | 'checking_product' | 'deep_security_review' | 'making_decision'
 
 type ReviewSnapshot = {
   stage: ReviewStage
   hasRunningExperience: boolean
+  deepSecurityReviewStarted?: boolean
+  deepSecurityReviewStatus?: 'completed' | 'concern' | 'failed'
   paused?: boolean
   observations: ReviewObservation[]
 }
@@ -133,6 +137,7 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
   let lastRecommendation: ReleaseRecommendation | undefined
   let lastVerificationReportId: string | undefined
   let reviewSnapshot: ReviewSnapshot | undefined
+  const securityEngine = startBuiltInSecurityEngine()
 
   const broadcast = (event: AgentEvent) => {
     const payload = `data: ${JSON.stringify(event)}\n\n`
@@ -175,11 +180,22 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
           reviewSnapshot = {
             stage,
             hasRunningExperience: Boolean(connection?.targetUrl),
+            deepSecurityReviewStarted: reviewSnapshot?.deepSecurityReviewStarted || stage === 'deep_security_review',
+            deepSecurityReviewStatus: reviewSnapshot?.deepSecurityReviewStatus,
             observations: reviewSnapshot?.observations ?? []
           }
           broadcast({ type: 'review_progress', trigger, mission: await missionControl() })
         },
         onEvidence: async (evidence) => {
+          const deepSecurityStatus = deepSecurityReviewStatus(evidence)
+          if (deepSecurityStatus && reviewSnapshot) {
+            reviewSnapshot = {
+              ...reviewSnapshot,
+              deepSecurityReviewStatus: deepSecurityStatus
+            }
+            broadcast({ type: 'review_progress', trigger, mission: await missionControl() })
+            return
+          }
           const observation = reviewObservation(evidence)
           if (!observation || !reviewSnapshot?.hasRunningExperience) return
           if (reviewSnapshot.observations.some((existing) => existing.message === observation.message)) return
@@ -206,6 +222,8 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
       reviewSnapshot = {
         stage: reviewSnapshot?.stage ?? 'understanding',
         hasRunningExperience: Boolean(connection?.targetUrl),
+        deepSecurityReviewStarted: reviewSnapshot?.deepSecurityReviewStarted,
+        deepSecurityReviewStatus: reviewSnapshot?.deepSecurityReviewStatus,
         paused: true,
         observations: reviewSnapshot?.observations ?? []
       }
@@ -401,7 +419,22 @@ export async function startVerionServer(options: StartVerionServerOptions = {}) 
       for (const client of eventClients) client.end()
       await new Promise<void>((resolveServer, reject) => server.close((error) => error ? reject(error) : resolveServer()))
       await vite.close()
+      securityEngine?.kill('SIGTERM')
     }
+  }
+}
+
+function startBuiltInSecurityEngine(): ChildProcess | undefined {
+  try {
+    const config = getDeepSecurityReviewConfig()
+    if (!config || config.serviceUrl !== 'http://127.0.0.1:5001') return undefined
+    return spawn(process.execPath, ['--import', 'tsx', resolve(dashboardRoot, 'services/security/src/server.ts')], {
+      cwd: dashboardRoot,
+      env: { ...process.env, PORT: '5001' },
+      stdio: 'ignore'
+    })
+  } catch {
+    return undefined
   }
 }
 
@@ -514,11 +547,18 @@ function createMissionControl(memory: ProjectMemory, reviewSnapshot?: ReviewSnap
 }
 
 function missionReview(snapshot: ReviewSnapshot, changes: MissionControl['recentChanges']): MissionReview {
-  const order: ReviewStage[] = ['understanding', 'reviewing_changes', 'checking_product', 'making_decision']
+  const order: ReviewStage[] = [
+    'understanding',
+    'reviewing_changes',
+    'checking_product',
+    ...(snapshot.deepSecurityReviewStarted ? ['deep_security_review' as const] : []),
+    'making_decision'
+  ]
   const currentIndex = order.indexOf(snapshot.stage)
   const changedAreas = changes.slice(0, 3).map((change) => change.label)
   const stateFor = (stage: ReviewStage): MissionReview['steps'][number]['state'] => {
     const index = order.indexOf(stage)
+    if (stage === 'deep_security_review' && snapshot.deepSecurityReviewStatus === 'failed') return 'paused'
     if (snapshot.paused && index === currentIndex) return 'paused'
     if (index < currentIndex) return 'completed'
     if (index === currentIndex) return 'current'
@@ -528,11 +568,20 @@ function missionReview(snapshot: ReviewSnapshot, changes: MissionControl['recent
     ? 'Looking through the running experience and the paths people rely on.'
     : 'Reviewing the project paths Verion can inspect right now.'
 
+  const deepReviewCopy = snapshot.deepSecurityReviewStatus === 'completed'
+    ? 'Deep security review complete. No critical concerns appeared in this review.'
+    : snapshot.deepSecurityReviewStatus === 'concern'
+      ? 'Deep security review found a critical concern.'
+      : snapshot.deepSecurityReviewStatus === 'failed'
+        ? 'Deep security review could not finish. Verion cannot make a complete release call yet.'
+        : 'Looking for critical concerns in this repository. Usually a few minutes.'
+
   return {
     steps: [
       { title: 'Understanding this project', description: 'Verion refreshed its picture of the product and the parts that matter.', state: stateFor('understanding') },
       { title: 'Reviewing what changed', description: changedAreas.length > 0 ? `Reviewing ${joinPlainLanguage(changedAreas)}.` : 'Verion compared the current project with what it already knows.', state: stateFor('reviewing_changes') },
       { title: 'Checking the product', description: productCopy, state: stateFor('checking_product') },
+      ...(snapshot.deepSecurityReviewStarted ? [{ title: 'Deep security review', description: deepReviewCopy, state: stateFor('deep_security_review' as const) }] : []),
       { title: 'Making a release decision', description: snapshot.stage === 'making_decision' ? 'Bringing the review together into one release recommendation.' : 'Verion will bring the observations together into one clear recommendation.', state: stateFor('making_decision') }
     ],
     changes: changedAreas,
@@ -543,12 +592,21 @@ function missionReview(snapshot: ReviewSnapshot, changes: MissionControl['recent
   }
 }
 
+function deepSecurityReviewStatus(evidence: Evidence): ReviewSnapshot['deepSecurityReviewStatus'] | undefined {
+  if (evidence.kind !== 'security_review' || evidence.producer !== 'deep-security-review') return undefined
+  const status = record(evidence.data).status
+  return status === 'completed' || status === 'concern' || status === 'failed' ? status : undefined
+}
+
 function reviewObservation(evidence: Evidence): ReviewObservation | undefined {
   const data = record(evidence.data)
   if (evidence.kind === 'browser_exploration') {
     if (data.status === 'failed') return { tone: 'warning', message: 'The running app could not be opened.' }
     const status = numberValue(data.status)
     if (status && status >= 400) return httpObservation(status, evidence.location?.url)
+    if (typeof data.journeyLabel === 'string' && data.journeyLabel.trim()) {
+      return { tone: 'success', message: `Reviewed ${data.journeyLabel.trim()}.` }
+    }
     return { tone: 'success', message: loadedObservation(data.title, evidence.location?.url) }
   }
 

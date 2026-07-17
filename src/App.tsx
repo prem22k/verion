@@ -98,13 +98,11 @@ export function App() {
       if (event.type === 'change_detected') {
         acceptMission(event.mission)
         setNotice(undefined)
-        setRepairWatchReportId(undefined)
       }
       if (event.type === 'verification_started') {
         acceptMission(event.mission)
         setIsVerifying(true)
         setError(undefined)
-        if (event.trigger === 'change') setRepairWatchReportId(undefined)
       }
       if (event.type === 'review_progress') {
         acceptMission(event.mission)
@@ -113,6 +111,7 @@ export function App() {
       if (event.type === 'verification_completed') {
         acceptMission(event.mission)
         setIsVerifying(false)
+        setRepairWatchReportId(undefined)
         if (event.report) setSelectedReportId(event.report.id)
       }
       if (event.type === 'verification_paused') {
@@ -221,17 +220,38 @@ function MissionControlHome({ mission, isVerifying, isAgentUnavailable, selected
 }) {
   if (mission.review) {
     return <section className="mission-control" id="top" aria-label={`${mission.project.name} release review`}>
+      <JourneyRail
+        phase="review"
+        showFix={Boolean(repairWatchReportId)}
+        completedPhases={repairWatchReportId ? ['understand', 'explain', 'fix'] : ['understand']}
+      />
       <LiveReview
         mission={mission}
         review={mission.review}
         isAgentUnavailable={isAgentUnavailable}
+        isRepairReview={Boolean(repairWatchReportId)}
         onVerify={onVerify}
         onReconnect={onReconnect}
       />
     </section>
   }
 
+  const selectedReport = mission.recentReports.find((report) => report.id === selectedReportId)
+  const isWatchingRepair = Boolean(selectedReport && repairWatchReportId === selectedReport.id)
+  const journeyPhase = selectedReport?.outcome === 'ready_to_ship'
+    ? 'ship'
+    : selectedReport?.outcome === 'needs_attention' && isWatchingRepair
+      ? 'fix'
+      : selectedReport?.outcome === 'needs_attention' || selectedReport?.outcome === 'inconclusive'
+        ? 'explain'
+        : 'review'
+  const completedPhases: JourneyPhase[] = isWatchingRepair
+    ? ['understand', 'review', 'explain']
+    : []
+
   return <section className="mission-control" id="top" aria-label={`${mission.project.name} mission control`}>
+    <JourneyRail phase={journeyPhase} showFix={selectedReport?.outcome === 'needs_attention'} completedPhases={completedPhases} />
+    {selectedReport && <DecisionFirst report={selectedReport} repairWatchReportId={repairWatchReportId} onFixWithCodex={onFixWithCodex} />}
     <MissionMasthead mission={mission} isVerifying={isVerifying} onVerify={onVerify} />
     {mission.likelyImpact.length > 0 && <LikelyImpactBrief impacts={mission.likelyImpact} />}
     {isAgentUnavailable && <aside className="connection-recovery" role="status"><p>Verion is not connected to this project right now.</p><button className="text-button" type="button" onClick={onReconnect}>Reconnect</button></aside>}
@@ -249,14 +269,15 @@ function MissionControlHome({ mission, isVerifying, isAgentUnavailable, selected
         renderItem={(journey) => <><strong>{journey.label}</strong><span>{journey.source === 'browser' ? 'Seen in the running app' : 'Understood from the project.'}</span></>}
       />
     </div>
-    <ReportShelf reports={mission.recentReports} selectedReportId={selectedReportId} onSelect={onSelectReport} repairWatchReportId={repairWatchReportId} onFixWithCodex={onFixWithCodex} />
+    <ReportShelf reports={mission.recentReports} selectedReportId={selectedReportId} onSelect={onSelectReport} />
   </section>
 }
 
-function LiveReview({ mission, review, isAgentUnavailable, onVerify, onReconnect }: {
+function LiveReview({ mission, review, isAgentUnavailable, isRepairReview, onVerify, onReconnect }: {
   mission: MissionControl
   review: MissionReview
   isAgentUnavailable: boolean
+  isRepairReview: boolean
   onVerify: () => void
   onReconnect: () => void
 }) {
@@ -271,8 +292,8 @@ function LiveReview({ mission, review, isAgentUnavailable, onVerify, onReconnect
     <header className="mission-masthead live-review__masthead">
       <div>
         <p className="section-label">Review</p>
-        <h1 id="live-review-title">Reviewing the latest version.</h1>
-        <p className="live-review__lead">Verion is following the parts of {mission.project.name} that matter before making one release recommendation.</p>
+        <h1 id="live-review-title">{isRepairReview ? 'Verifying the repair.' : 'Reviewing the latest version.'}</h1>
+        <p className="live-review__lead">{isRepairReview ? 'Checking the same release path after the repair.' : `Verion is following the parts of ${mission.project.name} that matter before making one release recommendation.`}</p>
       </div>
       <aside className="release-status release-status--reviewing" aria-live="polite">
         <VerionPresence state="learning" />
@@ -281,11 +302,11 @@ function LiveReview({ mission, review, isAgentUnavailable, onVerify, onReconnect
           <h2>{paused ? 'Paused' : 'Checking now'}</h2>
           <p>{paused ? (isAgentUnavailable ? 'Verion lost touch with this project before the review finished.' : review.message) : currentStep?.description}</p>
         </div>
-        {isAgentUnavailable ? <button className="button button--primary" type="button" onClick={onReconnect}>Reconnect <span>→</span></button> : paused ? <button className="button button--primary" type="button" onClick={onVerify}>Verify again <span>→</span></button> : <button className="button button--primary" type="button" disabled>Verion is reviewing</button>}
+        {isAgentUnavailable ? <button className="button button--primary" type="button" onClick={onReconnect}>Reconnect <span>→</span></button> : paused ? <button className="button button--primary" type="button" onClick={onVerify}>Verify again <span>→</span></button> : <button className="button button--primary" type="button" disabled>Reviewing</button>}
       </aside>
     </header>
     <ol className="review-path" aria-label="Release review progress">
-      {review.steps.map((step) => {
+      {review.steps.slice(0, 4).map((step) => {
         const state = paused && step.state === 'current' ? 'paused' : step.state
         return <li className={`review-path__step review-path__step--${state}`} key={step.title}>
           <span className="review-path__mark" aria-hidden="true">{state === 'completed' ? '✓' : state === 'current' ? '·' : state === 'paused' ? '!' : ''}</span>
@@ -295,7 +316,7 @@ function LiveReview({ mission, review, isAgentUnavailable, onVerify, onReconnect
             {state === 'current' && <span className="review-path__state">Checking now</span>}
             {state === 'paused' && <span className="review-path__state">Paused</span>}
             {state === 'current' && <ChangeBrief changes={review.changes} />}
-            {step.title === 'Checking the product' && (state === 'current' || state === 'paused') && review.hasRunningExperience && <ObservationBrief observations={review.observations ?? []} />}
+            {(state === 'current' || state === 'paused') && review.hasRunningExperience && <ObservationBrief observations={(review.observations ?? []).slice(-6)} />}
           </div>
         </li>
       })}
@@ -316,7 +337,7 @@ function ObservationBrief({ observations }: { observations: NonNullable<MissionR
     <p className="section-label" id="what-verion-noticed-title">What Verion noticed</p>
     {newest && <span className="screen-reader-announcement" aria-live="polite">{newest.message}</span>}
     {observations.length === 0 ? <p>Watching the running experience for anything that could affect people.</p> : <ul>
-      {observations.map((observation) => <li className={`observation-brief__item observation-brief__item--${observation.tone}`} key={`${observation.tone}:${observation.message}`}>
+      {observations.slice(-6).map((observation) => <li className={`observation-brief__item observation-brief__item--${observation.tone}`} key={`${observation.tone}:${observation.message}`}>
         <span className="observation-brief__mark" aria-hidden="true">{observation.tone === 'success' ? '✓' : '!'}</span>
         <span className="screen-reader-announcement">{observation.tone === 'success' ? 'Confirmed: ' : 'Needs attention: '}</span>
         <span>{observation.message}</span>
@@ -329,8 +350,10 @@ function MissionMasthead({ mission, isVerifying, onVerify }: { mission: MissionC
   const { understanding } = mission.project
   return <header className="mission-masthead">
     <div className="project-understanding">
-      <p className="section-label">What Verion understands</p>
-      <h1>{understanding.summary}</h1>
+      <p className="section-label">Release briefing</p>
+      <h1>Before you ship.</h1>
+      <p className="masthead-memory">I remember this project and the release paths that matter.</p>
+      <p className="masthead-summary">{understanding.summary}</p>
       {understanding.technologies.length > 0 && <p className="technology-sentence">Built with {technologySentence(understanding.technologies)}.</p>}
       {understanding.productAreas.length > 0 && <p className="area-sentence">{areaSentence(understanding.productAreas)}</p>}
       <ProjectMatters understanding={understanding} />
@@ -339,12 +362,38 @@ function MissionMasthead({ mission, isVerifying, onVerify }: { mission: MissionC
       <VerionPresence state={isVerifying ? 'learning' : mission.currentStatus.kind === 'ready_to_ship' ? 'ready' : 'hello'} />
       <div>
         <p className="section-label">Current status</p>
-        <h2>{isVerifying ? 'Reviewing now' : mission.currentStatus.label}</h2>
+        <h2>{isVerifying ? 'Reviewing' : mission.currentStatus.label}</h2>
         <p>{isVerifying ? 'Verion is looking through the latest version.' : mission.currentStatus.description}</p>
       </div>
       <button className="button button--primary" type="button" onClick={onVerify} disabled={isVerifying}>{isVerifying ? 'Verion is reviewing…' : mission.likelyImpact.length > 0 ? 'Verify now' : 'Verify'} {!isVerifying && <span>→</span>}</button>
     </aside>
   </header>
+}
+
+type JourneyPhase = 'understand' | 'review' | 'explain' | 'fix' | 'ship'
+
+function JourneyRail({ phase, showFix = false, completedPhases = [] }: { phase: JourneyPhase; showFix?: boolean; completedPhases?: JourneyPhase[] }) {
+  const phases: Array<{ id: JourneyPhase; label: string }> = [
+    { id: 'understand', label: 'Understand' },
+    { id: 'review', label: 'Review' },
+    { id: 'explain', label: 'Explain' },
+    ...(showFix ? [{ id: 'fix' as JourneyPhase, label: 'Fix' }] : []),
+    { id: 'ship', label: 'Ship' }
+  ]
+  const activeIndex = phases.findIndex((item) => item.id === phase)
+
+  return <ol className="journey-rail" aria-label="Release journey">
+    {phases.map((item, index) => {
+      const state = completedPhases.includes(item.id) || (index < activeIndex && item.id !== phase)
+        ? 'completed'
+        : index === activeIndex
+          ? 'current'
+          : 'future'
+      return <li className={`journey-rail__step journey-rail__step--${state}`} key={item.id} aria-current={state === 'current' ? 'step' : undefined}>
+        <span>{item.label}</span>
+      </li>
+    })}
+  </ol>
 }
 
 function LikelyImpactBrief({ impacts }: { impacts: UnderstandingItem[] }) {
@@ -403,50 +452,68 @@ function BriefingList<T extends { id: string }>({ title, items, empty, renderIte
   </section>
 }
 
-function ReportShelf({ reports, selectedReportId, onSelect, repairWatchReportId, onFixWithCodex }: {
-  reports: MissionReport[]
-  selectedReportId?: string
-  onSelect: (id: string | undefined) => void
+function DecisionFirst({ report, repairWatchReportId, onFixWithCodex }: {
+  report: MissionReport
   repairWatchReportId?: string
   onFixWithCodex: (reportId: string) => Promise<'opened' | 'unavailable' | 'needs_review'>
 }) {
-  const detailHeading = useRef<HTMLHeadingElement>(null)
-  const selected = reports.find((report) => report.id === selectedReportId)
+  return <section className="decision-first" aria-label="Current release decision">
+    <ReportDetail report={report} repairWatchReportId={repairWatchReportId} onFixWithCodex={onFixWithCodex} autoFocus />
+  </section>
+}
 
-  useEffect(() => {
-    if (selected) detailHeading.current?.focus()
-  }, [selected?.id])
+function ReportShelf({ reports, selectedReportId, onSelect }: {
+  reports: MissionReport[]
+  selectedReportId?: string
+  onSelect: (id: string | undefined) => void
+}) {
+  const selected = reports.find((report) => report.id === selectedReportId)
+  const shelfTitle = selected ? 'Recent reports' : 'Release confidence'
 
   return <section className="report-shelf" aria-labelledby="release-confidence-title">
-    <h2 id="release-confidence-title">Release confidence</h2>
+    <h2 id="release-confidence-title">{shelfTitle}</h2>
     {reports.length === 0 ? <p className="briefing-empty">Your release decisions will live here after the first review.</p> : <div className="report-rows">
       {reports.map((report) => <div className="report-row" key={report.id}>
-        <button type="button" aria-expanded={selected?.id === report.id} onClick={() => onSelect(selected?.id === report.id ? undefined : report.id)}>
+        <button type="button" aria-current={selected?.id === report.id ? 'true' : undefined} onClick={() => onSelect(selected?.id === report.id ? undefined : report.id)}>
           <span className={`report-outcome report-outcome--${report.outcome}`}>{statusLabel(report.outcome)}</span>
           <strong>{report.headline}</strong>
           <time dateTime={report.completedAt}>{relativeDate(report.completedAt)}</time>
         </button>
-        {selected?.id === report.id && <article className={`report-detail report-detail--${report.outcome}`} aria-labelledby={`release-call-${report.id}`}>
-          <p className="section-label">Release confidence</p>
-          <p className="report-confidence">{confidenceLabel(report.confidence)}</p>
-          <h3 id={`release-call-${report.id}`} ref={detailHeading} tabIndex={-1}>{statusLabel(report.outcome)}</h3>
-          <section className="report-detail__section">
-            <h4>The likely root cause</h4>
-            <p>{report.rootCause}</p>
-          </section>
-          {report.reasons.length > 0 && <section className="report-detail__section">
-            <h4>Why I reached this call</h4>
-            <ul>{report.reasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}</ul>
-          </section>}
-          <section className="report-detail__section">
-            <h4>What I would do next</h4>
-            <p>{report.nextAction}</p>
-          </section>
-          {report.outcome === 'needs_attention' && <FixWithCodexAction reportId={report.id} watching={repairWatchReportId === report.id} onOpen={onFixWithCodex} />}
-        </article>}
       </div>)}
     </div>}
   </section>
+}
+
+function ReportDetail({ report, repairWatchReportId, onFixWithCodex, autoFocus = false }: {
+  report: MissionReport
+  repairWatchReportId?: string
+  onFixWithCodex: (reportId: string) => Promise<'opened' | 'unavailable' | 'needs_review'>
+  autoFocus?: boolean
+}) {
+  const detailHeading = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    if (autoFocus) detailHeading.current?.focus()
+  }, [autoFocus, report.id])
+
+  return <article className={`report-detail report-detail--${report.outcome}`} aria-labelledby={`release-call-${report.id}`}>
+    <p className="section-label">{report.outcome === 'needs_attention' ? 'What Verion found' : 'Release decision'}</p>
+    <p className="report-confidence">{confidenceLabel(report.confidence)}</p>
+    <h3 id={`release-call-${report.id}`} ref={detailHeading} tabIndex={-1}>{statusLabel(report.outcome)}</h3>
+    <section className="report-detail__section">
+      <h4>The likely root cause</h4>
+      <p>{report.rootCause}</p>
+    </section>
+    {report.reasons.length > 0 && <section className="report-detail__section">
+      <h4>Why I reached this call</h4>
+      <ul>{report.reasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}</ul>
+    </section>}
+    <section className="report-detail__section">
+      <h4>What I would do next</h4>
+      <p>{report.nextAction}</p>
+    </section>
+    {report.outcome === 'needs_attention' && <FixWithCodexAction reportId={report.id} watching={repairWatchReportId === report.id} onOpen={onFixWithCodex} />}
+  </article>
 }
 
 function FixWithCodexAction({ reportId, watching, onOpen }: {
@@ -456,7 +523,7 @@ function FixWithCodexAction({ reportId, watching, onOpen }: {
 }) {
   const [state, setState] = useState<'idle' | 'preparing' | 'unavailable' | 'needs_review'>('idle')
   const message = watching
-    ? 'Codex has the repair brief. I’m watching for the fix.'
+    ? 'Codex has the repair brief. I’ll verify the repair when it is saved.'
     : state === 'preparing'
       ? 'Preparing a repair brief for Codex.'
       : state === 'unavailable'
@@ -474,7 +541,7 @@ function FixWithCodexAction({ reportId, watching, onOpen }: {
 
   return <section className="fix-action" aria-label="Repair with Codex">
     {watching
-      ? <button className="text-button fix-action__again" type="button" onClick={() => void open()}>Open in Codex again</button>
+      ? null
       : <button className="button button--primary" type="button" disabled={state === 'preparing'} aria-busy={state === 'preparing'} onClick={() => void open()}>{state === 'preparing' ? 'Preparing Codex…' : <>Fix with Codex <span>→</span></>}</button>}
     {message && <p className="fix-action__message" aria-live="polite">{message}</p>}
   </section>
