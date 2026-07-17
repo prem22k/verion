@@ -75,6 +75,7 @@ export function App() {
   const [error, setError] = useState<string | undefined>()
   const [notice, setNotice] = useState<string | undefined>()
   const [selectedReportId, setSelectedReportId] = useState<string | undefined>()
+  const [repairWatchReportId, setRepairWatchReportId] = useState<string | undefined>()
 
   const acceptMission = (nextMission: MissionControl) => {
     setMission(nextMission)
@@ -92,15 +93,18 @@ export function App() {
         setMission(undefined)
         setSelectedReportId(undefined)
         setIsVerifying(false)
+        setRepairWatchReportId(undefined)
       }
       if (event.type === 'change_detected') {
         acceptMission(event.mission)
         setNotice(undefined)
+        setRepairWatchReportId(undefined)
       }
       if (event.type === 'verification_started') {
         acceptMission(event.mission)
         setIsVerifying(true)
         setError(undefined)
+        if (event.trigger === 'change') setRepairWatchReportId(undefined)
       }
       if (event.type === 'review_progress') {
         acceptMission(event.mission)
@@ -164,6 +168,19 @@ export function App() {
     }
   }
 
+  async function fixWithCodex(reportId: string): Promise<'opened' | 'unavailable' | 'needs_review'> {
+    try {
+      const data = await requestJson<{ status: 'opened' | 'unavailable' | 'needs_review' }>('/api/reports/fix', {
+        method: 'POST',
+        body: JSON.stringify({ reportId })
+      })
+      if (data.status === 'opened') setRepairWatchReportId(reportId)
+      return data.status
+    } catch {
+      return 'unavailable'
+    }
+  }
+
   return <main className="app-shell">
     <header className="topbar">
       <a className="brand" href="#top" aria-label="Verion home"><span className="brand-mark">V</span><span>verion</span></a>
@@ -182,6 +199,8 @@ export function App() {
         onVerify={() => void verifyNow()}
         onReconnect={() => void loadMission()}
         onSelectReport={setSelectedReportId}
+        repairWatchReportId={repairWatchReportId}
+        onFixWithCodex={fixWithCodex}
       />
       {notice && <aside className="quiet-notice" role="status"><p>{notice}</p><button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss message">×</button></aside>}
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -189,7 +208,7 @@ export function App() {
   </main>
 }
 
-function MissionControlHome({ mission, isVerifying, isAgentUnavailable, selectedReportId, onVerify, onReconnect, onSelectReport }: {
+function MissionControlHome({ mission, isVerifying, isAgentUnavailable, selectedReportId, onVerify, onReconnect, onSelectReport, repairWatchReportId, onFixWithCodex }: {
   mission: MissionControl
   isVerifying: boolean
   isAgentUnavailable: boolean
@@ -197,6 +216,8 @@ function MissionControlHome({ mission, isVerifying, isAgentUnavailable, selected
   onVerify: () => void
   onReconnect: () => void
   onSelectReport: (id: string | undefined) => void
+  repairWatchReportId?: string
+  onFixWithCodex: (reportId: string) => Promise<'opened' | 'unavailable' | 'needs_review'>
 }) {
   if (mission.review) {
     return <section className="mission-control" id="top" aria-label={`${mission.project.name} release review`}>
@@ -228,7 +249,7 @@ function MissionControlHome({ mission, isVerifying, isAgentUnavailable, selected
         renderItem={(journey) => <><strong>{journey.label}</strong><span>{journey.source === 'browser' ? 'Seen in the running app' : 'Understood from the project.'}</span></>}
       />
     </div>
-    <ReportShelf reports={mission.recentReports} selectedReportId={selectedReportId} onSelect={onSelectReport} />
+    <ReportShelf reports={mission.recentReports} selectedReportId={selectedReportId} onSelect={onSelectReport} repairWatchReportId={repairWatchReportId} onFixWithCodex={onFixWithCodex} />
   </section>
 }
 
@@ -382,7 +403,13 @@ function BriefingList<T extends { id: string }>({ title, items, empty, renderIte
   </section>
 }
 
-function ReportShelf({ reports, selectedReportId, onSelect }: { reports: MissionReport[]; selectedReportId?: string; onSelect: (id: string | undefined) => void }) {
+function ReportShelf({ reports, selectedReportId, onSelect, repairWatchReportId, onFixWithCodex }: {
+  reports: MissionReport[]
+  selectedReportId?: string
+  onSelect: (id: string | undefined) => void
+  repairWatchReportId?: string
+  onFixWithCodex: (reportId: string) => Promise<'opened' | 'unavailable' | 'needs_review'>
+}) {
   const detailHeading = useRef<HTMLHeadingElement>(null)
   const selected = reports.find((report) => report.id === selectedReportId)
 
@@ -415,9 +442,41 @@ function ReportShelf({ reports, selectedReportId, onSelect }: { reports: Mission
             <h4>What I would do next</h4>
             <p>{report.nextAction}</p>
           </section>
+          {report.outcome === 'needs_attention' && <FixWithCodexAction reportId={report.id} watching={repairWatchReportId === report.id} onOpen={onFixWithCodex} />}
         </article>}
       </div>)}
     </div>}
+  </section>
+}
+
+function FixWithCodexAction({ reportId, watching, onOpen }: {
+  reportId: string
+  watching: boolean
+  onOpen: (reportId: string) => Promise<'opened' | 'unavailable' | 'needs_review'>
+}) {
+  const [state, setState] = useState<'idle' | 'preparing' | 'unavailable' | 'needs_review'>('idle')
+  const message = watching
+    ? 'Codex has the repair brief. I’m watching for the fix.'
+    : state === 'preparing'
+      ? 'Preparing a repair brief for Codex.'
+      : state === 'unavailable'
+        ? 'Codex could not open here. Install the local Codex CLI, then try again.'
+        : state === 'needs_review'
+          ? 'I need another review before I can prepare a repair.'
+          : undefined
+
+  async function open() {
+    setState('preparing')
+    const result = await onOpen(reportId)
+    if (result === 'opened') return
+    setState(result)
+  }
+
+  return <section className="fix-action" aria-label="Repair with Codex">
+    {watching
+      ? <button className="text-button fix-action__again" type="button" onClick={() => void open()}>Open in Codex again</button>
+      : <button className="button button--primary" type="button" disabled={state === 'preparing'} aria-busy={state === 'preparing'} onClick={() => void open()}>{state === 'preparing' ? 'Preparing Codex…' : <>Fix with Codex <span>→</span></>}</button>}
+    {message && <p className="fix-action__message" aria-live="polite">{message}</p>}
   </section>
 }
 
