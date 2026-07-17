@@ -28,13 +28,13 @@ Each `Evidence` object has a stable identity, producer, kind, timestamp, concise
 - Browser exploration → browser-action evidence and screenshots.
 - Console observer → console-log evidence.
 - Network observer → network-log evidence.
-- ServX adapter → security-finding evidence.
+- Security review engine → security-finding evidence.
 - Performance analyzer → performance-finding evidence.
 - Accessibility analyzer → accessibility-finding evidence.
 
 ## Orchestration
 
-The verification orchestrator receives an ordered list of `EvidenceProducer` instances. It does not import, invoke, or reason about Playwright, ServX, Semgrep, or any scanner directly.
+The verification orchestrator receives an ordered list of `EvidenceProducer` instances. It does not import, invoke, or reason about Playwright, a security engine, Semgrep, or any scanner directly.
 
 ## Context Capsules and GPT
 

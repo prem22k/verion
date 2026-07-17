@@ -63,7 +63,7 @@ Possible solutions:
 
 Decision needed: provide the official details or approve the provisional operating assumptions.
 
-## Q6 — Should ServX Attack Paths be used in the hackathon demo?
+## Q6 — Should Deep Security Review be used in the hackathon demo?
 
 Why it matters: the supplied service can add credible security evidence, but it requires GitHub credentials, MongoDB, external tools, and stronger target-scan safety controls than Verion currently has.
 
@@ -74,3 +74,5 @@ Possible solutions:
 - **Option C:** Integrate its full scanner suite and reporting UI now. This is not recommended because it creates scope creep and conflicts with Verion's selective release-decision experience.
 
 Decision needed: approve Option A or Option B. See `SECURITY_INTEGRATION_PLAN.md` for the staged plan and mandatory safeguards.
+
+**Resolved 2026-07-17:** The explicit product request approves a narrow Stage 1 adapter. Verion may run an optional Deep security review only when a loopback-only local service and an explicitly configured GitHub repository identity are present. It sends neither a target URL nor credentials, source, local memory, or browser material; it admits only critical high-confidence concerns into the existing release decision. A real authorized-service validation remains required before relying on this review for a release.

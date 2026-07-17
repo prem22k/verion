@@ -16,11 +16,39 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
   Status: Doing  
   Dependencies: Project discovery; repository graph; browser observation; Context Capsules; OpenAI API credential and available rate limit.
 
-- [ ] **P0 — Translate verification into the customer-facing release journey**
-  Status: Doing
+- [x] **P0 — Translate verification into the customer-facing release journey**
+  Status: Done
   Dependencies: First-run project understanding; working verification vertical slice.
 
+- [x] **P0 — Make browser exploration follow known product journeys**
+  Status: Done
+  Dependencies: Repository discovery Evidence; target-agnostic browser observation.
+
+- [x] **P0 — Make the release decision the first post-review moment**
+  Status: Done
+  Dependencies: Existing live review; bounded release report; customer-facing journey.
+
+- [ ] **P1 — Validate the optional Deep security review against an authorized local service**
+  Status: Doing
+  Dependencies: Loopback service; explicit approved GitHub repository identity; available local service credentials.
+
+- [ ] **P1 — Validate the built-in local security engine**
+  Status: Doing
+  Dependencies: Root workspace install; local security storage; authorized GitHub repository and credential.
+
+- [ ] **P1 — Implement the approved Verion Presence state language**
+  Status: Todo
+  Dependencies: Approved `.ulpi/design/verion-presence.md`; existing local review lifecycle and release decisions.
+
 ## Done
+
+- [x] **P1 — Add Deep security review to the existing release decision**
+  Status: Done
+  Dependencies: Evidence-first orchestrator; existing live review and bounded release reports.
+
+- [x] **P0 — Prepare a private Fix Packet for Codex**
+  Status: Done
+  Dependencies: Stored Needs Attention report; complete local verification context; existing project watcher.
 
 - [x] **P0 — Distill release reports into one clear decision**
   Status: Done

@@ -2,6 +2,47 @@
 
 Use this file as Verion's engineering journal. Record major product decisions when they change direction, scope, workflow, or user experience.
 
+## 2026-07-17 — Optional Deep Security Review
+
+### Decision
+
+Integrate the supplied local security service only as an optional, loopback-only Evidence Producer named internally as Deep security review. It receives an explicitly configured GitHub repository identity, not arbitrary browser input or project data, and its eligible findings feed Verion's existing one-release-decision flow.
+
+### Why
+
+Critical, trustworthy security concerns can materially affect whether a developer should ship, but a separate scanning product would dilute Verion's focused release experience and widen the data boundary unnecessarily.
+
+### Alternatives Considered
+
+- Build a security dashboard, findings table, or attack graph in Verion.
+- Send the current app URL, local source, project memory, browser artifacts, or credentials to the service.
+- Include every severity and raw finding in a supplementary report.
+- Omit security review completely.
+
+### Consequences
+
+The adapter sends only local requester and pre-approved repository fields to a loopback URL. It accepts only critical findings with an authoritative identifier or a narrowly trusted critical source, then redacts and normalizes them before they reach orchestration, GPT, memory, or the browser. A configured review that cannot complete produces an Inconclusive release call rather than a false clean result. The dashboard adds one short review stage only while that review runs; it never exposes the service, raw findings, endpoints, IDs, credentials, counts, or a second report.
+
+## 2026-07-17 — Built-In Local Security Engine
+
+### Decision
+
+Ship the security review implementation under `services/security/` as an internal Verion workspace.
+
+### Why
+
+The developer explicitly requested a self-contained Verion clone: one repository, one root installation, and no separately cloned security product. Keeping the engine as a workspace retains a clear operational boundary while making it part of the product.
+
+### Alternatives Considered
+
+- Keep the security engine in an external checkout.
+- Merge the service routes and scanning implementation directly into Verion's dashboard or local agent.
+- Copy raw findings into a separate browser surface.
+
+### Consequences
+
+The root workspace installs the engine with Verion. When an authorized review is configured, the local agent starts the loopback-only engine automatically; its package manifest, runtime, database configuration, and credentials remain isolated. It is excluded from Verion's browser contract and is still accessed only through the bounded Deep security review producer. Shipping source does not authorize arbitrary targets, credentials, scanner output, or a second release report.
+
 ## 2026-07-14
 
 ### Decision
@@ -116,7 +157,7 @@ This keeps tool integrations modular, preserves reviewability, and ensures GPT r
 ### Alternatives Considered
 
 - Allow tool-specific result contracts in the orchestrator.
-- Let GPT call Playwright, ServX, or scanners directly.
+- Let GPT call Playwright, the security engine, or scanners directly.
 - Build separate reports for each verification subsystem.
 
 ### Tradeoffs
@@ -382,6 +423,26 @@ A release call should feel like advice from a Staff Engineer: clear enough to ac
 **Consequences**
 
 GPT must choose limited confidence and an inconclusive recommendation when the local capsule cannot justify a call. Saved reports from earlier local-memory versions are normalized safely rather than discarded. Evidence IDs remain internal, and the browser contract excludes evidence, paths, URLs, tool names, logs, screenshots, and internal reasoning artifacts.
+
+## 2026-07-17 — Reviewable Codex Repair Handoff
+
+**Decision**
+
+Only a stored Needs Attention decision with current supporting review context may create a private Fix Packet for Codex. Verion opens Codex as an interactive local session and never edits source files, grants approvals, bypasses sandboxing, or starts a second verification mechanism itself.
+
+**Reason**
+
+Verion’s role is to frame and verify a repair, not silently make one. A bounded packet gives Codex the relevant issue, supporting observations, likely files, root cause, repair boundary, and follow-up plan while keeping the developer in control of every change.
+
+**Alternatives**
+
+- Send a raw report or entire project memory to Codex.
+- Let Verion invoke a non-interactive repair command.
+- Add a separate repair polling loop or dashboard terminal.
+
+**Consequences**
+
+Packets live only under the project’s ignored `.verion/fix-packets/` directory with owner-only permissions. The loopback dashboard receives only an opened, unavailable, or needs-another-review state. The existing source watcher remains the sole trigger for the post-repair verification.
 
 ## 2026-07-15 — Explicit Local Project Connection and Quiet Watch (Superseded)
 

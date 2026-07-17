@@ -23,7 +23,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Measured the live Verify-to-diagnosis transition at 1.4 seconds in Chromium.
 - Implemented target-agnostic project discovery for local React, Next.js, and Vite projects.
 - Implemented a repository graph with framework entry points, route candidates, and resolved relative imports.
-- Validated discovery and graph construction against Verion and the unrelated ServX Attack Paths TypeScript service.
+- Validated discovery and graph construction against Verion and an unrelated TypeScript service.
 - Implemented target-agnostic Context Capsule generation from a verification finding and repository graph.
 - Refactored discovery and graph construction into normalized Evidence Producers behind a tool-agnostic verification orchestrator.
 - Refactored Context Capsules to accept Evidence only.
@@ -40,7 +40,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Bounded Context Capsules to the relevant Evidence neighborhood and capped source excerpts, while retaining the complete Evidence set for dashboard review.
 - Replaced browser project-path and URL configuration with launch-directory project discovery through the `verion` executable.
 - Added loopback-only conventional local-app detection with an advanced `verion --url <address>` override.
-- Validated automatic discovery from both Verion and the unrelated ServX Attack Paths project.
+- Validated automatic discovery from both Verion and an unrelated TypeScript project.
 - Redesigned the full customer-facing product journey in `.ulpi/design/release-journey.md`, from Verion's browser arrival through local memory, review, repair, rerun, and ready-to-ship confirmation; implementation remains intentionally deferred.
 - Implemented first-run project understanding: `verion` now discovers the launched project, builds its internal project map, derives real framework/service/product-flow facts, and saves the complete local memory in `.verion/project-memory.json`.
 - Added the first-run dashboard experience: Verion introduces itself, reveals real project discoveries progressively in plain language, summarizes its understanding, and remembers the project only after the developer continues.
@@ -55,10 +55,18 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Added live review observations from real browser outcomes. The local server translates normalized findings into at most six deduplicated, human-readable outcomes while checking a running app; raw observation data never enters the dashboard payload.
 - Added conservative Likely Impact briefings for watched source changes. Verion refreshes local memory, maps only supported changes to up to three product areas, and offers one `Verify now` action without exposing paths, counts, or matching rules.
 - Redesigned persisted release reports as a bounded Staff Engineer decision brief: one recommendation, confidence label, likely root cause, at most three reasons, and one next action. Legacy local reports normalize safely, while the browser receives only this curated conclusion.
+- Implemented the Fix Packet handoff for supported Needs Attention reports. Verion writes a private, owner-only repair brief under `.verion/fix-packets/`, opens an interactive local Codex session without edit automation, and relies on the existing source watcher to review a saved repair.
+- Designed the Verion Presence as a lightweight state signal with six lifecycle-backed states: Learning, Watching, Thinking, Reviewing, Concerned, and Ready. Implementation is intentionally deferred until this identity specification is approved.
+- Added an optional local Deep security review as a normalized Evidence Producer. It is explicitly repository-authorized, loopback-only, filtered to critical high-confidence concerns before orchestration, and feeds the existing release decision without adding a second product surface.
+- Made the security review engine a shipped internal capability under `services/security/`, installed through the root workspace and started automatically for an authorized review while preserving Verion's Evidence-only and single-release-decision boundary.
+- Replaced landing-page-only browser observation with repository-guided exploration of a bounded set of known static journeys: sign-in, dashboard, billing, and settings when present. It inspects navigation and forms without clicking arbitrarily, entering data, or submitting mutations.
+- Polished the customer journey into one intentional release loop: Understand, Review, Explain, Fix, Verify the repair, and Ready to ship. The dashboard adds only a quiet orientation rail and state-specific copy; no new workflow or backend capability was added.
+- Completed a Build Week judge-pass UX review and corrected the largest demo risk: a completed release decision now appears before Mission Control context, with truthful pre-fix, repair-watch, and repair-review phase language.
 
 ## In-Progress Work
 
 - Validate the complete customer-facing verification and release-report flow against arbitrary running projects. Mission Control now includes the live review path, Project Understanding briefing, and bounded release-confidence report.
+- Validate Deep security review with an authorized local service and repository identity, including a completed critical concern, a clean completion, and an unavailable-service Inconclusive result.
 
 ## Blockers
 
@@ -68,7 +76,9 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 
 1. Validate the dashboard review and release decision against a running, arbitrary project with `OPENAI_API_KEY` configured.
 2. Verify watcher behavior against an external project target, including Mission Control's local recent-changes and report updates.
-3. Implement the approved Fix Packet and verify-again handoff only after the release decision is stable.
+3. Validate the complete Fix with Codex → saved repair → watcher-driven verification loop against an arbitrary project with an available local Codex CLI.
+4. Implement the approved Verion Presence state language without adding a chatbot, mascot, or simulated progress behavior.
+5. Run the optional Deep security review against an authorized repository only after its local service is available and independently validated.
 
 ## Important Decisions
 

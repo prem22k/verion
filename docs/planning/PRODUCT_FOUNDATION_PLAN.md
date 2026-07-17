@@ -35,7 +35,7 @@ verion discover --project <absolute-or-relative-path>
 
 Every Verion subsystem is an Evidence Producer or an Evidence Consumer. Discovery, graphing, browser observation, console logs, network logs, screenshots, security integrations, performance checks, and accessibility checks all emit the same `Evidence` shape.
 
-The verification orchestrator accepts only `EvidenceProducer` implementations. It has no knowledge of Playwright, ServX, Semgrep, or any other tool. The Context Capsule consumes Evidence only. Any GPT integration receives a completed Context Capsule only and never calls a browser, scanner, or graph builder directly.
+The verification orchestrator accepts only `EvidenceProducer` implementations. It has no knowledge of Playwright, the security engine, Semgrep, or any other tool. The Context Capsule consumes Evidence only. Any GPT integration receives a completed Context Capsule only and never calls a browser, scanner, or graph builder directly.
 
 ## Current Implementation Boundary
 

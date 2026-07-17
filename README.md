@@ -39,6 +39,12 @@ For packaged use, run `verion` from the root of the application you want to veri
 
 When developing Verion itself, `npm run dev` starts the agent against the current directory. Set `OPENAI_API_KEY` in `.env` before running the command. Verion loads `.env` when its local agent or CLI starts, so restart it after changing the file. `VERION_OPENAI_MODEL` is optional. The command emits `{ evidence, capsule, report }`; GPT receives only the Context Capsule.
 
+### Built-in security review
+
+Security review ships inside this repository as an internal Verion capability. The root `npm install` installs its workspace dependencies along with the dashboard and local agent; there is no second repository to clone or wire together.
+
+When an authorized repository review is configured, its local credentials and database settings remain in `services/security/.env`. The dashboard never receives raw security output. Verion uses only eligible critical concerns as part of its existing release decision.
+
 To inspect discovery without GPT diagnosis:
 
 ```bash
