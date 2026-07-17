@@ -64,6 +64,30 @@ Use the saved project summary as the large sentence. Technologies appear as a si
 
 Partial state: `I understand the main shape of this project. I’ll learn more when I review the running app.`
 
+### Expanded Project Understanding
+
+The first view must make the developer feel that Verion understands the product before they verify it. Beneath the summary, add a compact ruled `What matters here` briefing. It is a short set of plain-English statements, not a table, grid of cards, or technical inventory.
+
+It may contain these lines only when Verion has real support for them:
+
+```text
+This is a SaaS dashboard.
+People sign in with Clerk Authentication.
+Billing runs through Stripe. App data lives in PostgreSQL.
+It is built with Next.js and React Server Components.
+```
+
+Then show up to four small ruled groups, in reading order:
+
+- `User journeys` such as `Sign in`, `Dashboard`, and `Billing`.
+- `Critical flows` such as `Create a workspace` or `Complete checkout`.
+- `Important pages` with human labels only. Never show route syntax.
+- `Important APIs` with human labels only. Never show endpoint paths.
+
+Each group displays a maximum of three labels with a subdued `Show all` disclosure when more are known. If a category is not yet supported by the project, omit it rather than showing an empty technical section. If no page or API can be inferred, say nothing about that category.
+
+The compact explanation must lead to this feeling: `Verion knows what this application is for and which paths can hurt the business if they fail.`
+
 ### Recent Changes
 
 **Purpose:** Make change awareness useful without becoming a diff viewer.
