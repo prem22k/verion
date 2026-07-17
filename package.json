@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "workspaces": [
+    "services/security"
+  ],
   "bin": {
     "verion": "./bin/verion.mjs"
   },
@@ -11,7 +14,9 @@
     "dev:verion": "tsx agent/cli.ts start",
     "start": "tsx agent/cli.ts start",
     "dev:vite": "vite",
+    "dev:security": "npm --workspace @verion/security-engine run dev",
     "build": "tsc -b && vite build",
+    "build:security": "npm --workspace @verion/security-engine run build",
     "preview": "vite preview",
     "verify:demo": "tsx agent/run-verification.ts",
     "capture:dashboard": "tsx agent/capture-dashboard.ts",
