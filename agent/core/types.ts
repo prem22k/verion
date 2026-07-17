@@ -51,9 +51,63 @@ export type ProjectUnderstanding = {
   apiCount: number
 }
 
-export type ProjectMemory = {
-  version: 1
+export type ProjectProfile = {
+  name: string
   projectRoot: string
+  framework: ProjectFramework
+  packageManager: PackageManager
+  firstLearnedAt: string
+  lastLearnedAt: string
+  lastVerifiedAt?: string
+}
+
+export type KnownUserJourney = {
+  id: string
+  label: string
+  route?: string
+  source: 'project' | 'browser'
+  firstObservedAt: string
+  lastObservedAt: string
+  interactiveElementCount?: number
+}
+
+export type ProjectFileSnapshot = Record<string, { size: number; modifiedAt: number }>
+
+export type RecentProjectChange = {
+  detectedAt: string
+  added: string[]
+  modified: string[]
+  removed: string[]
+}
+
+export type VerificationHistoryEntry = {
+  id: string
+  completedAt: string
+  trigger: 'manual' | 'change' | 'cli'
+  recommendation: ReleaseRecommendation
+  evidenceCounts: Partial<Record<EvidenceKind, number>>
+  diagnosisUnavailable?: string
+}
+
+export type StoredReleaseReport = ReleaseReport & {
+  id: string
+  completedAt: string
+}
+
+export type KnownIssue = {
+  id: string
+  headline: string
+  diagnosis: string
+  firstSeenAt: string
+  lastSeenAt: string
+  occurrences: number
+  status: 'open' | 'resolved'
+  lastReportId: string
+}
+
+export type ProjectMemory = {
+  version: 2
+  profile: ProjectProfile
   createdAt: string
   updatedAt: string
   onboardingCompletedAt?: string
@@ -61,6 +115,14 @@ export type ProjectMemory = {
   discovery: ProjectDiscovery
   graph: RepositoryGraph
   understanding: ProjectUnderstanding
+  knownTechnologies: ProjectTechnology[]
+  knownRoutes: ProjectRoute[]
+  knownUserJourneys: KnownUserJourney[]
+  verificationHistory: VerificationHistoryEntry[]
+  releaseReports: StoredReleaseReport[]
+  knownIssues: KnownIssue[]
+  recentChanges: RecentProjectChange[]
+  fileSnapshot: ProjectFileSnapshot
 }
 
 export type ProjectAnalysis = {
