@@ -1,7 +1,8 @@
 import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium, type Browser, type Page } from 'playwright'
+import type { Browser, Page } from 'playwright'
+import { browserRuntimeGuidance, launchBrowserForReview } from './browserRuntime'
 import type { Evidence, EvidenceProducer, EvidenceProductionContext, ProjectDiscovery, ProjectRoute } from '../core/types'
 
 const maximumJourneys = 5
@@ -54,7 +55,7 @@ export class BrowserObservationProducer implements EvidenceProducer {
     }
 
     try {
-      browser = await chromium.launch({ headless: true })
+      browser = await launchBrowserForReview()
       page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       const targetOrigin = new URL(context.targetUrl).origin
 
@@ -133,14 +134,17 @@ export class BrowserObservationProducer implements EvidenceProducer {
         if (status !== null && status >= 400) await captureRelevantScreenshot(record, runDirectory, capturedAt, page, journey)
       }
     } catch (error: unknown) {
+      const guidance = browserRuntimeGuidance(error)
       const failure: Evidence = {
         id: `${this.id}:failure`,
         producer: this.id,
         kind: 'browser_exploration',
         capturedAt,
-        summary: `Verion could not review ${activeJourney?.label ?? 'the running application'}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        summary: guidance
+          ? `Verion paused browser review. ${guidance}`
+          : `Verion could not review ${activeJourney?.label ?? 'the running application'}: ${error instanceof Error ? error.message : 'Unknown error'}`,
         location: { url: page?.url() || context.targetUrl, route: activeJourney?.path },
-        data: { status: 'failed', journey: activeJourney?.id, journeyLabel: activeJourney?.label }
+        data: { status: 'failed', journey: activeJourney?.id, journeyLabel: activeJourney?.label, ...(guidance ? { guidance } : {}) }
       }
       await record(failure)
       if (page && activeJourney) await captureRelevantScreenshot(record, runDirectory, capturedAt, page, activeJourney)

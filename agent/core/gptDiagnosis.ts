@@ -1,5 +1,5 @@
-import type { ContextCapsule, ReleaseConfidence, ReleaseReport } from './types'
-import { getGptDiagnosisConfig } from './runtimeConfig'
+import type { ContextCapsule, Evidence, ReleaseConfidence, ReleaseReport } from './types'
+import { executeStructuredAI } from './runtimeConfig'
 
 const diagnosisSchema = {
   type: 'object',
@@ -29,111 +29,103 @@ const diagnosisSchema = {
   required: ['recommendation', 'confidence', 'headline', 'rootCause', 'reasons', 'evidenceIds', 'nextAction']
 }
 
-export async function diagnoseContextCapsule(capsule: ContextCapsule): Promise<ReleaseReport> {
-  const { apiKey, model } = getGptDiagnosisConfig()
+export async function diagnoseContextCapsule(capsule: ContextCapsule, projectRoot: string): Promise<ReleaseReport> {
+  const result = await executeStructuredAI<unknown>(projectRoot, {
+    task: 'release_reasoning',
+    instructions: [
+      'You are Verion, a careful release reviewer for AI-built software.',
+      'Diagnose only from the supplied Context Capsule. Do not claim that a behavior, root cause, or fix is proven unless the capsule supports it.',
+      'Return exactly one concise release recommendation, one likely root cause, and no more than three distinct short reasons grounded in the supplied material.',
+      'Prefer an inconclusive recommendation with limited confidence whenever the supplied material cannot support a release call or root-cause claim.',
+      'Use high confidence only when the supplied material directly supports the recommendation. For ready_to_ship, state the narrow observed basis for no current release blocker instead of inventing a problem.',
+      'Cite one or more Evidence IDs from the capsule. Do not mention tools or request tool access.'
+    ].join(' '),
+    input: { contextCapsule: capsule },
+    schemaName: 'verion_release_report',
+    schema: diagnosisSchema
+  })
 
-  let response: Response
-  try {
-    response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(45_000),
-      body: JSON.stringify({
-        model,
-        store: false,
-        max_output_tokens: 1_000,
-        input: [
-          {
-            role: 'system',
-            content: [
-              'You are Verion, a careful release reviewer for AI-built software.',
-              'Diagnose only from the supplied Context Capsule. Do not claim that a behavior, root cause, or fix is proven unless the capsule supports it.',
-              'Return exactly one concise release recommendation, one likely root cause, and no more than three distinct short reasons grounded in the supplied material.',
-              'Prefer an inconclusive recommendation with limited confidence whenever the supplied material cannot support a release call or root-cause claim.',
-              'Use high confidence only when the supplied material directly supports the recommendation. For ready_to_ship, state the narrow observed basis for no current release blocker instead of inventing a problem.',
-              'Cite one or more Evidence IDs from the capsule. Do not mention tools or request tool access.'
-            ].join(' ')
-          },
-          {
-            role: 'user',
-            content: JSON.stringify({ contextCapsule: capsule })
-          }
-        ],
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'verion_release_report',
-            strict: true,
-            schema: diagnosisSchema
-          }
-        }
-      })
-    })
-  } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === 'TimeoutError') {
-      throw new Error('GPT diagnosis timed out after 45 seconds. Evidence collection completed; retry the diagnosis.')
-    }
-    throw new Error('GPT diagnosis could not reach OpenAI. Check your network connection and retry.')
-  }
-
-  if (!response.ok) {
-    throw new Error(await describeOpenAiFailure(response))
-  }
-
-  const result = await response.json() as { output_text?: unknown }
-  if (!result.output_text) throw new Error('GPT diagnosis returned no structured output.')
-
-  const report = parseReleaseReport(result.output_text)
+  const report = parseReleaseReport(result.value)
   const knownEvidence = new Set(capsule.evidence.map((item) => item.id))
   if (!report.evidenceIds.every((id) => knownEvidence.has(id))) {
-    throw new Error('GPT diagnosis cited evidence outside the Context Capsule.')
+    throw new Error('AI release reasoning cited material outside the Context Capsule.')
   }
   return report
 }
 
-async function describeOpenAiFailure(response: Response): Promise<string> {
-  if (response.status === 401 || response.status === 403) {
-    return 'OpenAI rejected the configured API key or model access. Check OPENAI_API_KEY and VERION_OPENAI_MODEL, then restart the local agent.'
-  }
-  if (response.status === 429) return 'OpenAI rate-limited the diagnosis. Evidence collection completed; retry shortly.'
-  if (response.status >= 500) return 'OpenAI is temporarily unavailable. Evidence collection completed; retry the diagnosis.'
-  const detail = await readSafeOpenAiError(response)
-  return detail
-    ? `OpenAI rejected the diagnosis request (${response.status}): ${detail}`
-    : `OpenAI rejected the diagnosis request (${response.status}). Check VERION_OPENAI_MODEL and retry.`
-}
+/**
+ * A model can improve correlation and explanation, but it must not be the only
+ * path to a useful release decision. This report is deliberately conservative:
+ * it only reacts to direct local observations and never claims a root cause
+ * beyond them.
+ */
+export function deterministicReleaseReport(evidence: Evidence[]): ReleaseReport {
+  const evidenceIds = evidence.map((item) => item.id)
+  const securityFindings = evidence.filter((item) => item.kind === 'security_finding')
+  const productFailures = evidence.filter((item) => item.kind === 'console_log' || item.kind === 'network_log' || (item.kind === 'browser_exploration' && record(item.data).status === 'failed'))
+  const failedSecurity = evidence.some((item) => item.kind === 'security_review' && record(item.data).status === 'failed')
+  const reviewedJourneys = evidence.filter((item) => item.kind === 'browser_exploration' && record(item.data).status !== 'failed')
+  const discovery = evidence.find((item) => item.kind === 'repository_discovery')
+  const review = evidence.find((item) => item.kind === 'security_review')
 
-async function readSafeOpenAiError(response: Response): Promise<string | undefined> {
-  try {
-    const value = await response.json() as unknown
-    if (!value || typeof value !== 'object' || !('error' in value)) return undefined
-    const error = value.error
-    if (!error || typeof error !== 'object' || !('message' in error) || typeof error.message !== 'string') return undefined
-    return error.message
-      .replace(/sk-[A-Za-z0-9_-]+/g, '[REDACTED]')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 300)
-  } catch {
-    return undefined
+  if (failedSecurity) {
+    return {
+      recommendation: 'inconclusive', confidence: 'limited', headline: 'Review incomplete',
+      rootCause: 'Deep Security Review could not complete its local review.',
+      reasons: ['A required local review did not complete, so Verion will not make a complete release call.'],
+      evidenceIds: [review?.id ?? evidenceIds[0]].filter(Boolean),
+      nextAction: 'Try Deep Security Review again after resolving the local review error.'
+    }
+  }
+  if (securityFindings.length > 0) {
+    const first = securityFindings[0]
+    return {
+      recommendation: 'needs_attention', confidence: 'high', headline: 'Needs attention',
+      rootCause: first.summary,
+      reasons: uniqueReasons(securityFindings.slice(0, 3).map((item) => item.summary)),
+      evidenceIds: securityFindings.slice(0, 3).map((item) => item.id),
+      nextAction: 'Resolve the security concern, review the diff, then verify this change again.'
+    }
+  }
+  if (productFailures.length > 0) {
+    const first = productFailures[0]
+    return {
+      recommendation: 'needs_attention', confidence: 'high', headline: 'Needs attention',
+      rootCause: first.summary,
+      reasons: uniqueReasons(productFailures.slice(0, 3).map((item) => item.summary)),
+      evidenceIds: productFailures.slice(0, 3).map((item) => item.id),
+      nextAction: 'Resolve the observed product failure, then verify this change again.'
+    }
+  }
+  if (!discovery || !review) {
+    return {
+      recommendation: 'inconclusive', confidence: 'limited', headline: 'Review incomplete',
+      rootCause: 'Verion did not collect enough local review material to make a release decision.',
+      reasons: ['Project discovery and a local security review are both required for a deterministic decision.'],
+      evidenceIds: evidenceIds.slice(0, 3),
+      nextAction: 'Verify this change again after Verion can access the local project.'
+    }
+  }
+  const browserReason = reviewedJourneys.length > 0
+    ? `Reviewed ${reviewedJourneys.length === 1 ? 'the discovered product path' : `${reviewedJourneys.length} discovered product paths`} without a direct failure signal.`
+    : 'No running local app was available, so this decision is based on repository and local security review only.'
+  return {
+    recommendation: 'ready_to_ship',
+    confidence: reviewedJourneys.length > 0 ? 'moderate' : 'limited',
+    headline: 'Ready to ship',
+    rootCause: 'The completed local review did not identify a critical, high, or direct product failure.',
+    reasons: uniqueReasons([discovery.summary, review.summary, browserReason]),
+    evidenceIds: [discovery.id, review.id, ...reviewedJourneys.slice(0, 1).map((item) => item.id)],
+    nextAction: reviewedJourneys.length > 0 ? 'Review the changed diff, then ship when the change is ready.' : 'For stronger confidence, run the local app and verify this change again before shipping.'
   }
 }
 
 function parseReleaseReport(output: unknown): ReleaseReport {
-  if (typeof output !== 'string') throw new Error('GPT diagnosis returned an invalid structured output.')
-  let value: unknown
-  try {
-    value = JSON.parse(output)
-  } catch {
-    throw new Error('GPT diagnosis returned malformed structured output.')
-  }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('GPT diagnosis returned an invalid structured output.')
+  const value = output
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('AI release reasoning returned an invalid structured result.')
   const report = value as Record<string, unknown>
   if (!isRecommendation(report.recommendation) || !isConfidence(report.confidence) || !isNonEmptyString(report.headline) || !isNonEmptyString(report.rootCause) || !isReasons(report.reasons) || !isNonEmptyString(report.nextAction) || !isEvidenceIds(report.evidenceIds)) {
-    throw new Error('GPT diagnosis returned an invalid structured report.')
+    throw new Error('AI release reasoning returned an invalid structured report.')
   }
   return {
     recommendation: report.recommendation,
@@ -166,4 +158,18 @@ function isReasons(value: unknown): value is string[] {
   if (!Array.isArray(value) || value.length > 3 || !value.every(isNonEmptyString)) return false
   const normalized = value.map((reason) => reason.trim().toLowerCase())
   return new Set(normalized).size === normalized.length
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function uniqueReasons(reasons: string[]): string[] {
+  const seen = new Set<string>()
+  return reasons.filter((reason) => {
+    const key = reason.trim().toLowerCase()
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 3)
 }

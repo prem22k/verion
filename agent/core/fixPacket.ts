@@ -4,6 +4,8 @@ import { platform } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type { ContextCapsule, Evidence, StoredReleaseReport } from './types'
+import type { RepairBrief } from './types'
+import { repairBriefPacket } from './repairBrief'
 
 const packetDirectoryName = 'fix-packets'
 const packetMode = 0o600
@@ -26,6 +28,17 @@ export class FixPacketIncompleteError extends Error {
   constructor() {
     super('A completed review with supporting observations is required before preparing a repair.')
     this.name = 'FixPacketIncompleteError'
+  }
+}
+
+/**
+ * Phase 6 Codex handoff: this is deliberately the same canonical local brief
+ * that Copy Fix Prompt and native repair use, never a parallel formatter.
+ */
+export function createFixPacketFromRepairBrief(brief: RepairBrief): FixPacket {
+  return {
+    path: `repair-${createHash('sha256').update(brief.id).digest('hex').slice(0, 16)}.md`,
+    content: repairBriefPacket(brief)
   }
 }
 
@@ -153,6 +166,9 @@ function launchVisible(command: string, args: string[]): Promise<FixPacketLaunch
 
 function redactPacketText(value: string): string {
   return value
+    .replace(/(?:sk[-_]|AIza|or-)[A-Za-z0-9_-]{8,}/g, 'sensitive credential removed')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]{8,}\b/gi, 'sensitive credential removed')
+    .replace(/\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|redis):\/\/[^\s'"`]+/gi, 'sensitive connection string removed')
     .replace(/https?:\/\/\S+/gi, 'the running product')
     .replace(/\b(?:api[_-]?key|token|password|secret|authorization)\s*[:=]\s*[^\s,;]+/gi, 'sensitive value removed')
     .replace(/(?:^|\s)(?:\.?\.?\/)?(?:[\w.-]+\/)+[\w.-]+\.(?:[cm]?[jt]sx?|json|prisma)(?=$|[\s),.:])/gi, ' a project file')

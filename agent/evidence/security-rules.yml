@@ -1,0 +1,70 @@
+rules:
+  - id: verion.javascript.dynamic-evaluation
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Dynamic evaluation can execute untrusted input when data reaches this expression.
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+
+  - id: verion.javascript.raw-html
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Direct HTML rendering needs reviewed sanitization before untrusted content reaches this sink.
+    patterns:
+      - pattern-either:
+          - pattern: $NODE.innerHTML = ...
+          - pattern: $NODE.outerHTML = ...
+          - pattern: document.write(...)
+          - pattern: <... dangerouslySetInnerHTML={...} ... />
+
+  - id: verion.javascript.sql-template-query
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: A query is assembled from interpolated text. Request-controlled values must be parameterized instead.
+    pattern-regex: '\\b(?:query|execute|raw)\\s*\\(\\s*`[^`]*\\$\\{'
+
+  - id: verion.javascript.request-controlled-command
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Request-controlled input reaches a command execution API and can lead to remote code execution.
+    pattern-regex: '\\b(?:exec|execSync|spawn|spawnSync)\\s*\\(\\s*(?:req(?:uest)?|ctx)\\.(?:body|query|params)'
+
+  - id: verion.javascript.request-controlled-outbound-url
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Request-controlled input is used as an outbound URL and can create a server-side request forgery path.
+    pattern-regex: '\\b(?:fetch|request|axios\\.(?:get|post|request))\\s*\\(\\s*(?:req(?:uest)?|ctx)\\.(?:body|query|params)'
+
+  - id: verion.python.dynamic-evaluation
+    languages: [python]
+    severity: ERROR
+    message: Dynamic Python evaluation can execute untrusted input when data reaches this expression.
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+
+  - id: verion.python.shell-execution
+    languages: [python]
+    severity: ERROR
+    message: Shell execution needs a fixed command and strict argument allowlist; request-controlled shell input can lead to code execution.
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.$METHOD(..., shell=True, ...)
+          - pattern: os.system(...)
+
+  - id: verion.python.raw-html
+    languages: [python]
+    severity: ERROR
+    message: Marking content safe bypasses HTML escaping and needs reviewed sanitization.
+    pattern-either:
+      - pattern: mark_safe(...)
+      - pattern: Markup(...)
+
+  - id: verion.python.sql-template-query
+    languages: [python]
+    severity: ERROR
+    message: A query is assembled from interpolated text. Request-controlled values must be parameterized instead.
+    pattern-regex: '\\b(?:execute|executemany)\\s*\\(\\s*f["\x27][^"\x27]*\\{'

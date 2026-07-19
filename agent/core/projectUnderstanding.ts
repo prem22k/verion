@@ -1,4 +1,5 @@
-import { getGptDiagnosisConfig, getGptDiagnosisStatus } from './runtimeConfig'
+import { executeStructuredAI } from './runtimeConfig'
+import { redactSourceText } from './assistantTools'
 import type { ProjectDiscovery, ProjectModelUnderstanding, ProjectUnderstanding, ProjectUnderstandingItem } from './types'
 
 const understandingSchema = {
@@ -46,49 +47,22 @@ type ModelOutline = {
 }
 
 export async function enrichProjectUnderstanding(discovery: ProjectDiscovery, understanding: ProjectUnderstanding): Promise<ProjectModelUnderstanding | undefined> {
-  if (!getGptDiagnosisStatus().configured) return undefined
-  const { apiKey, model } = getGptDiagnosisConfig()
   const outline = projectOutline(discovery, understanding)
-
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    signal: AbortSignal.timeout(25_000),
-    body: JSON.stringify({
-      model,
-      store: false,
-      max_output_tokens: 600,
-      input: [
-        {
-          role: 'system',
-          content: [
-            'You are Verion, a local teammate learning a software project before it is reviewed.',
-            'Use only the supplied project outline. It contains filenames, routes, dependency names, and deterministic local inferences, but never source code or secrets.',
-            'Give a careful, specific product understanding. Do not invent customers, features, integrations, or behavior not supported by the outline.',
-            'The thesis must be one concise sentence beginning with "I think this is".',
-            'Key entities are short nouns that a developer would recognize. Priority journeys must be a user-facing journey and a short reason it matters.',
-            'Review focus must state what Verion should pay closest attention to in the next review. If the outline is thin, use fewer entities and journeys instead of guessing.'
-          ].join(' ')
-        },
-        { role: 'user', content: JSON.stringify({ projectOutline: outline }) }
-      ],
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'verion_project_understanding',
-          strict: true,
-          schema: understandingSchema
-        }
-      }
-    })
+  const result = await executeStructuredAI<unknown>(discovery.projectRoot, {
+    task: 'project_understanding',
+    instructions: [
+      'You are Verion, a local teammate learning a software project before it is reviewed.',
+      'Use only the supplied project outline. It contains filenames, routes, dependency names, and deterministic local inferences, but never source code or secrets.',
+      'Give a careful, specific product understanding. Do not invent customers, features, integrations, or behavior not supported by the outline.',
+      'The thesis must be one concise sentence beginning with "I think this is".',
+      'Key entities are short nouns that a developer would recognize. Priority journeys must be a user-facing journey and a short reason it matters.',
+      'Review focus must state what Verion should pay closest attention to in the next review. If the outline is thin, use fewer entities and journeys instead of guessing.'
+    ].join(' '),
+    input: { projectOutline: outline },
+    schemaName: 'verion_project_understanding',
+    schema: understandingSchema
   })
-
-  if (!response.ok) return undefined
-  const result = await response.json() as { output_text?: unknown }
-  return parseModelUnderstanding(result.output_text)
+  return parseModelUnderstanding(result.value)
 }
 
 function projectOutline(discovery: ProjectDiscovery, understanding: ProjectUnderstanding): ModelOutline {
@@ -114,23 +88,17 @@ function projectOutline(discovery: ProjectDiscovery, understanding: ProjectUnder
 }
 
 function parseModelUnderstanding(value: unknown): ProjectModelUnderstanding | undefined {
-  if (typeof value !== 'string') return undefined
-  try {
-    const parsed = JSON.parse(value) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined
-    const result = parsed as Record<string, unknown>
-    const thesis = safeText(result.thesis, 280)
-    const reviewFocus = safeText(result.reviewFocus, 240)
-    if (!thesis || !reviewFocus || !/^i think this is\b/i.test(thesis)) return undefined
-    return {
-      thesis,
-      keyEntities: uniqueItems(strings(result.keyEntities, 5), 'entity'),
-      priorityJourneys: priorityJourneys(result.priorityJourneys),
-      reviewFocus,
-      updatedAt: new Date().toISOString()
-    }
-  } catch {
-    return undefined
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const result = value as Record<string, unknown>
+  const thesis = safeText(result.thesis, 280)
+  const reviewFocus = safeText(result.reviewFocus, 240)
+  if (!thesis || !reviewFocus || !/^i think this is\b/i.test(thesis)) return undefined
+  return {
+    thesis,
+    keyEntities: uniqueItems(strings(result.keyEntities, 5), 'entity'),
+    priorityJourneys: priorityJourneys(result.priorityJourneys),
+    reviewFocus,
+    updatedAt: new Date().toISOString()
   }
 }
 
@@ -165,6 +133,6 @@ function strings(value: unknown, maximum: number): string[] {
 
 function safeText(value: unknown, maximum: number): string | undefined {
   if (typeof value !== 'string') return undefined
-  const text = value.replace(/\s+/g, ' ').trim()
-  return text.length > 0 ? text.slice(0, maximum) : undefined
+  const text = redactSourceText(value).replace(/\s+/g, ' ').trim()
+  return text.length > 0 && !/\[REDACTED/i.test(text) ? text.slice(0, maximum) : undefined
 }

@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
+import { createServer } from 'node:net'
 import { platform } from 'node:os'
 import { createContextCapsule } from './core/contextCapsule'
 import type { Evidence } from './core/types'
@@ -14,20 +15,27 @@ function optionValue(args: string[], option: string): string | undefined {
 
 async function main() {
   const rawArgs = process.argv.slice(2)
+  if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
+    printUsage()
+    return
+  }
   const command = rawArgs[0] && !rawArgs[0].startsWith('-') ? rawArgs[0] : 'start'
   const args = command === 'start' && rawArgs[0]?.startsWith('-') ? rawArgs : rawArgs.slice(1)
   if (command === 'start') {
     const targetUrl = optionValue(args, '--url')
     const portValue = optionValue(args, '--port')
-    const port = portValue ? Number(portValue) : undefined
-    if (portValue && (!Number.isInteger(port) || port! < 1 || port! > 65_535)) throw new Error('--port must be a valid TCP port.')
+    const requestedPort = portValue ? Number(portValue) : undefined
+    if (portValue && (!Number.isInteger(requestedPort) || requestedPort! < 1 || requestedPort! > 65_535)) throw new Error('--port must be a valid TCP port.')
+    const projectPath = resolve(optionValue(args, '--project') ?? process.cwd())
+    const port = requestedPort ?? await findAvailablePort()
     const server = await startVerionServer({
       port,
-      projectPath: process.cwd(),
+      projectPath,
       targetUrl,
       watchChanges: !args.includes('--no-watch')
     })
-    process.stdout.write(`Verion is watching ${process.cwd()} at ${server.url}\n`)
+    process.stdout.write(`Verion is learning ${projectPath}\n`)
+    process.stdout.write(`Verion is ready at ${server.url}\n`)
     openDashboard(server.url)
     return
   }
@@ -60,7 +68,28 @@ async function main() {
     if (result.diagnosisUnavailable) process.exitCode = 1
     return
   }
-  throw new Error('Usage: verion [--url <running-app-url>] [--port <port>] [--no-watch] | verion discover --project <path> [--url <running-app-url>] | verion capsule --project <path> --finding <evidence-json-path> | verion verify --project <path> [--url <running-app-url>]')
+  printUsage()
+  process.exitCode = 1
+}
+
+async function findAvailablePort() {
+  for (let port = 5173; port < 5193; port += 1) {
+    if (await canListen(port)) return port
+  }
+  throw new Error('Verion could not find a free local port between 5173 and 5192. Use --port <port> to choose one.')
+}
+
+async function canListen(port: number) {
+  return new Promise<boolean>((resolvePort) => {
+    const probe = createServer()
+    probe.once('error', () => resolvePort(false))
+    probe.once('listening', () => probe.close(() => resolvePort(true)))
+    probe.listen(port, '127.0.0.1')
+  })
+}
+
+function printUsage() {
+  process.stdout.write(`Verion learns the project in your current directory and opens its local dashboard.\n\nUsage:\n  verion [--url <running-app-url>] [--port <port>] [--no-watch]\n  verion --project <path> [--url <running-app-url>] [--port <port>]\n  verion discover --project <path> [--url <running-app-url>]\n  verion capsule --project <path> --finding <evidence-json-path>\n  verion verify --project <path> [--url <running-app-url>]\n`)
 }
 
 function openDashboard(url: string) {

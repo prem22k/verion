@@ -1,9 +1,10 @@
-import type { Evidence, EvidenceProducer } from '../core/types'
+import type { Evidence, EvidenceProducer, SecurityReviewProgress } from '../core/types'
 
 export type VerificationRequest = {
   projectPath: string
   targetUrl?: string
   onEvidence?: (evidence: Evidence) => void | Promise<void>
+  onSecurityProgress?: (progress: SecurityReviewProgress) => void | Promise<void>
 }
 
 export class VerificationOrchestrator {
