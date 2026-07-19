@@ -1,27 +1,7 @@
-# Verion Security Engine
+# Archived repository-service experiment
 
-This workspace is an internal Verion capability. It performs deeper local security review when an authorized repository is configured; it is not a separate product, dashboard, or user workflow.
+This directory contains an earlier prototype that queued GitHub repositories through MongoDB. It is **not part of Verion's package, startup path, dashboard, or Deep Security Review**.
 
-## How it runs
+Verion now reviews the local project directory from which the developer ran `verion`. The supported product path needs no database, GitHub token, repository ID, second terminal, or separate security service. The active implementation lives in `agent/evidence/localDeepSecurityReviewProducer.ts` and starts only when the developer presses **Start Deep Security Review**.
 
-The root workspace installs this package with the rest of Verion:
-
-```bash
-npm install
-```
-
-When Deep Security Review is enabled in Verion’s root `.env`, `verion` starts this local engine automatically. It listens only on loopback and its raw job data never reaches the dashboard. Verion converts only eligible critical concerns into the existing release decision.
-
-## Local configuration
-
-Copy `.env.example` to `.env` in this directory only when running an authorized repository review. Its database and GitHub credentials stay local and must never be committed or placed in Verion’s root `.env`.
-
-```bash
-cp services/security/.env.example services/security/.env
-```
-
-The engine needs local MongoDB plus authorized GitHub credentials to complete a repository review. Without them, Verion reports the security part of a requested review as inconclusive rather than claiming the project is clean.
-
-## Development
-
-Use `npm run dev:security` only when developing this internal workspace directly. Normal Verion use does not require a second terminal or repository.
+Keep this code only as historical reference while it is being retired. Do not configure or run it for normal Verion use.

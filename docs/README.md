@@ -14,6 +14,10 @@ Then use the documents below for the decision at hand.
 
 ## Product Source of Truth
 
+- [`PRODUCT_DIRECTION.MD`](product/PRODUCT_DIRECTION.MD) — locked product and AI experience direction for the next major release.
+- [`PRODUCT_DIRECTION_TODO.md`](product/PRODUCT_DIRECTION_TODO.md) — dependency-aware implementation checklist for that direction.
+- [`AI_AND_DATA_ARCHITECTURE.md`](product/AI_AND_DATA_ARCHITECTURE.md) — provider boundary, local-data ownership, migration, assistant, security, and repair contracts.
+- [`LOCAL_DATA_AND_BYOM.md`](product/LOCAL_DATA_AND_BYOM.md) — exact local data locations, reset behavior, provider credential boundary, BYOM setup, and browser-runtime setup.
 - [`PRODUCT_VISION.md`](product/PRODUCT_VISION.md) — full long-term product vision and experience.
 - [`VISION.md`](product/VISION.md) — concise mission, personality, and product boundaries.
 - [`MVP.md`](product/MVP.md) — non-negotiable Build Week loop and success criteria.

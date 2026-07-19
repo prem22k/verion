@@ -44,13 +44,9 @@ Today’s deliverable is one `verify` command that returns normalized Evidence, 
   Status: Done
   Dependencies: Bounded release report; Mission Control dashboard.
 
-- [ ] **P1 — Validate the optional Deep security review against an authorized local service**
-  Status: Doing
-  Dependencies: Loopback service; explicit approved GitHub repository identity; available local service credentials.
-
-- [ ] **P1 — Validate the built-in local security engine**
-  Status: Doing
-  Dependencies: Root workspace install; local security storage; authorized GitHub repository and credential.
+- [x] **P1 — Make Deep Security Review a local project capability**
+  Status: Done
+  Dependencies: The launch-directory project scope; bounded local reviewer; optional npm lockfile audit after a developer starts the review.
 
 - [ ] **P1 — Implement the approved Verion Presence state language**
   Status: Todo

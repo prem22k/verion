@@ -2,17 +2,17 @@
 
 ## Product Boundary
 
-Verion ships a local security review engine under `services/security/`. It is an internal capability of the same product—not a separate dashboard, repository, or developer workflow.
+Deep Security Review is a bounded local Verion capability. It is not a separate dashboard, repository, service, or developer configuration workflow.
 
-Verion remains responsible for the release decision. The engine may contribute one high-confidence critical concern when it materially changes whether the developer should ship.
+Verion remains responsible for the release decision. The local reviewer may contribute high-confidence critical or high concerns when they materially change whether the developer should ship.
 
 ## What the Engine Does
 
-The engine can review an explicitly authorized repository for secret exposure, dependency vulnerabilities, unsafe application patterns, and infrastructure concerns. It keeps its job data and operational details local; the dashboard receives only curated, eligible critical concerns through Verion’s normal Evidence boundary.
+The local reviewer inventories every eligible project artifact, then combines purpose-built local code, credential, dependency, and deployment/configuration checks. Tests stay inside the code boundary; only explicitly synthetic credentials are suppressed. It keeps findings local; the dashboard receives only normalized, product-level concerns through Verion’s normal Evidence boundary.
 
 ## Local Operation
 
-The root workspace installs the engine with `npm install`. When an authorized deep review is configured, `verion` starts the loopback-only engine automatically. It keeps its own local database and credential configuration in `services/security/.env`.
+Deep Security Review is available whenever `verion` runs, but begins only after the developer presses **Start Deep Security Review** on Security. It does not require MongoDB, GitHub credentials, a repository identity, a scanner account, or a separate process. Optional future review sources must meet the same bounded local-data contract before becoming part of the default release path.
 
 No developer needs to clone, wire, or open another product. The normal product workflow remains:
 
@@ -22,13 +22,13 @@ verion → understand the project → verify → one release decision
 
 ## Required Security Controls
 
-- Explicit authorization for every repository and target.
-- Loopback-only communication between the local agent and engine.
-- No arbitrary source paths, browser material, project memory, or credentials sent from Verion to the engine.
-- Per-job sandboxing, CPU/time limits, artifact retention limits, and cleanup before broad availability.
+- Project scope is the directory in which the developer ran `verion`; no arbitrary repository or URL target is accepted.
+- Every eligible source, test, configuration, workflow, manifest, lockfile, and infrastructure file is inventoried. Exclude only runtime `.env` files, public assets, installed dependencies, VCS internals, generated output, caches, and non-reviewable binaries. Do not silently cap the file count.
+- No browser material, project memory, credentials, or raw source payload leaves Verion for the built-in local scan. A review may create a temporary local mirror of only the eligible files for local tools and removes it after the run. Dependency vulnerability matching may contact its vulnerability service only after the developer explicitly starts the review; it never sends source, memory, browser material, or provider credentials.
+- Never read runtime `.env` values. Git index metadata may be used to identify a tracked environment file without reading its contents.
 - Secret redaction before persistence, logs, dashboard display, and Codex handoff.
-- Allowlisted scanners and pinned versions; no arbitrary command execution from request input.
-- An Inconclusive decision when a configured security review cannot complete.
+- No arbitrary command execution from review input.
+- An Inconclusive decision when a started local review cannot complete or any required specialist local check is unavailable. Missing coverage is never presented as a pass.
 
 ## Explicit Non-Goals
 

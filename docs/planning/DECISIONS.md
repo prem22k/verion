@@ -2,6 +2,20 @@
 
 Use this file as Verion's engineering journal. Record major product decisions when they change direction, scope, workflow, or user experience.
 
+## 2026-07-19 — Local-first Deep Security Review
+
+### Decision
+
+Make the bounded local Deep Security Review the default security capability. It runs against the project directory that launched Verion and needs no MongoDB, GitHub credential, repository identity, local service, or scanner account.
+
+### Why
+
+Security was visibly unavailable in a normal local install because the earlier optional service depended on unrelated infrastructure. That undermined Verion's first-minute promise: a developer should be able to run `verion`, learn the project, and start a review immediately.
+
+### Consequences
+
+The local review produces normalized findings and contributes to the same release decision as Verify. The historical service workspace is not part of the default product path or dashboard contract. Any future deeper source must preserve the bounded local-data controls; if required specialist coverage is unavailable, Verion must mark the review incomplete rather than quietly treating the baseline as clean.
+
 ## 2026-07-17 — Optional Deep Security Review
 
 ### Decision
@@ -21,7 +35,7 @@ Critical, trustworthy security concerns can materially affect whether a develope
 
 ### Consequences
 
-The adapter sends only local requester and pre-approved repository fields to a loopback URL. It accepts only critical findings with an authoritative identifier or a narrowly trusted critical source, then redacts and normalizes them before they reach orchestration, GPT, memory, or the browser. A configured review that cannot complete produces an Inconclusive release call rather than a false clean result. The dashboard adds one short review stage only while that review runs; it never exposes the service, raw findings, endpoints, IDs, credentials, counts, or a second report.
+Superseded by the 2026-07-19 local-first decision above. The historical service is no longer installed, started, packaged, or used by Verion.
 
 ## 2026-07-17 — Built-In Local Security Engine
 
@@ -41,7 +55,7 @@ The developer explicitly requested a self-contained Verion clone: one repository
 
 ### Consequences
 
-The root workspace installs the engine with Verion. When an authorized review is configured, the local agent starts the loopback-only engine automatically; its package manifest, runtime, database configuration, and credentials remain isolated. It is excluded from Verion's browser contract and is still accessed only through the bounded Deep security review producer. Shipping source does not authorize arbitrary targets, credentials, scanner output, or a second release report.
+Superseded by the 2026-07-19 local-first decision above. The directory remains only as archived research; root installs and packaged `verion` no longer include it.
 
 ## 2026-07-14
 

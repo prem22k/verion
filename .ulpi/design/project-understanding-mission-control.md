@@ -1,122 +1,105 @@
 ---
 feature: project-understanding-mission-control
 register: product
-design_system: native semantic HTML controls
+design_system: Apple HIG-inspired native semantic controls
 binds_to: DESIGN.md
 ---
 
-# Project Understanding Mission Control
+# Compact Mission Control
 
 Every screen must read as the same product if placed side by side.
 
 ## Design read
 
-The old dashboard performs an assistant. This redesign makes Verion feel informed. The first frame is a project ledger that proves an opinionated understanding through the developer's real stack, product areas, routes, APIs, remembered journeys, and a concise thesis.
+This is a working release desk, not an introduction to Verion. The first viewport must let a developer read their project, see what changed, and start a review without scrolling through branding.
 
-## Flow: First local learning pass
+## Layout contract
 
-**Goal:** Let a developer establish that Verion understands their product before they request a review.
+- A 12-column desktop grid with 16px gaps; mobile is one column.
+- `Project control strip` spans all 12 columns. It contains the project name at 30–40px maximum, a one-sentence understanding, the single Verify action, compact facts, and the detected stack.
+- `Local Memory`, `Verify`, and `Deep Security Review` occupy four-column supporting modules.
+- `Recent Changes`, `Latest Review`, and `History` occupy eight-column reading modules. Latest Review receives the richest prose area.
+- Each module is one surface. Lists and review content render directly inside it with dividers. No nested cards, hero bands, full-bleed section backgrounds, oversized headings, or numbered kickers.
+- The app owns the viewport. Native browser scrollbars are suppressed, while its content remains reachable via wheel, touch, and keyboard scrolling.
 
-**Trigger:** `verion` launches from the project root.
+## Flow: Read project and begin a review
+
+**Goal:** Let a developer assess the current project picture and begin a context-aware release review.
+
+**User story:** As a developer, I want to see what Verion learned and what changed so I can decide whether to verify the current change.
+
+**Trigger:** `verion` opens its local dashboard.
 
 ```text
-[Launch]
-  -> [Inventory local project]
-  -> [Generate an optional structured project thesis]
-  -> [Persist local memory]
-  -> [Project ledger]
-       -> Verify -> [Live review]
-       -> Learn more -> [Expanded project reading]
+[Local project memory]
+  -> [Compact project control strip]
+       -> Verify this change -> [Human review progress] -> [Latest Review]
+       -> Read the project brief -> [Inline project detail]
 ```
 
-### Project ledger
-
-Desktop is a 12-column asymmetric grid. The left 8 columns contain the project name, natural-language thesis, and one decisive Verify action. The right 4 columns show counts: routes, API endpoints, remembered paths, and last learned. Below, the full width contains ruled lists for technology marks, product areas, the local-memory statement, recent changes, and the latest release decision.
-
-- The headline is the real project name, never a generic slogan.
-- The thesis comes from deterministic discovery until GPT enrichment is available. If enriched, it is labelled `project thesis` in subtle utility type, not `AI summary`.
-- Each technology row uses a real recognizable logo plus its source-backed label. Unknown technologies use a neutral monogram only.
-- The only prominent action is `Verify this change`.
-- `Read the project brief` expands the product areas, priority journeys, APIs, and model-supported review focus in place.
-
-### Local memory
-
-One compact, ruled sentence: `Stored locally · learned <date> · remembers <N> release paths`. It must never promise permanent storage beyond the local project memory file. It has no button in the MVP.
-
-### Review progress
-
-During review, use a plain sequence of human product checks. Examples: `Authentication reviewed`, `Billing reviewed`, `Checkout returned an error`, `Dashboard navigation succeeded`, and `Mobile review completed` when evidence supports them. The active review item receives the single accent rule; all technical event names remain hidden.
-
-### Latest review and history
-
-Latest Review gets one decisive reading column: decision, likely cause, why, next action. History is a short chronological ruled list below it. No visual card nesting or status-dot wallpaper.
-
-### States and edge cases
+### States
 
 | State | Treatment |
 | --- | --- |
-| Initial deterministic learning | Render discovered facts immediately and the neutral thesis. Do not block the first frame on GPT. |
-| GPT-enriched learning | Replace the neutral thesis and add product entities, focus, and priority journeys after the response is persisted. |
-| GPT unavailable | Keep the fully useful deterministic ledger. Say only `Local project picture saved.` |
-| No running app | Keep Verify available; the review says it will inspect available project paths. |
-| Disconnected | Preserve learned content and replace Verify with `Reconnect Verion`. |
-| Review in progress | Keep the project ledger visible and place the human review sequence in the main reading column. |
-| Inconclusive / security unavailable | Present it in Latest Review with one retry action. Do not expose internal dependency failures. |
-| Mobile | Collapse the count column into a two-by-two count strip and place it below the thesis. Technology rows wrap; no horizontal scroll. |
+| Initial learning | Render deterministic project facts immediately in the control strip. |
+| Enriched understanding | Replace the fallback thesis and populate the inline project brief. |
+| GPT unavailable | Retain the useful deterministic picture. Do not add an error module. |
+| Disconnected | Preserve all modules and replace Verify with `Reconnect Verion`. |
+| Reviewing | Keep the compact control strip, then show customer-readable review steps. |
+| No release decision | Keep Latest Review as a small empty reading state. |
+| Security unavailable | Show one factual Deep Security Review state, never scanner terminology. |
 
 ## Component briefs
 
-### `ProjectLedger`
+### ProjectControlStrip
 
-Purpose: establish a credible product understanding in the first viewport.
+Purpose: establish real project context in a single dashboard module.
 
-Data: project name, thesis, technologies, product areas, counts, memory metadata, priority journeys, review focus, and local-enrichment status.
+Data: project name, thesis, detected technologies, route count, API count, remembered paths, last learned time, current connection status.
 
-Behavior: the brief disclosure uses a native button with `aria-expanded`; it does not hide the Verify action. Counts are factual and remain visible even when model enrichment fails.
+Behavior: `Verify this change` is the one primary action. `Read the project brief` is a native disclosure button with `aria-expanded`. Project facts are always visible, including when enrichment is unavailable.
 
-Accessibility: project heading is the page `h1`; logos are decorative when paired with text; all disclosure and action controls have 48px minimum targets and visible focus.
+Responsive: desktop uses main reading area plus a fixed fact panel; mobile stacks the fact panel below the action row. Project name remains at or below 32px on mobile.
 
-### `TechnologyRoster`
+Accessibility: project name is the page `h1`; focus is always visible; technology logos are decorative when paired with a text label; action targets are at least 44px.
 
-Purpose: make detected stack information tangible through genuine technology marks.
+### DashboardModule
 
-Variants: compact inline roster in the first viewport; expanded ruled list in the project brief.
+Purpose: provide a small, stable reading area for a single release concern.
 
-Behavior: each item always contains a text label. An unavailable mark falls back to a named monogram, never an anonymous generic icon.
+Variants: `supporting` (four columns), `reading` (eight columns), `verify` (dark, one primary action).
 
-### `MemoryLine`
+Behavior: prose wraps; lists use dividers inside the same module; no module may create horizontal overflow. Empty and unavailable states use text, not placeholder charts or decorative status dots.
 
-Purpose: communicate durable local project continuity without a settings UI.
+Responsive: every variant becomes one full-width module under 768px.
 
-Data: first learned, last learned, known journey count, verification count.
+Accessibility: headings identify each region. Status is always conveyed in text in addition to color. Keyboard users can move through the same linear document order as visual users.
 
-Accessibility: use a text list with a visually subtle separator, not color alone.
+### LatestReview
 
-### `ReviewSequence`
+Purpose: give the release decision the largest reading surface without imitating a report page.
 
-Purpose: make an active review legible as work on the product, not implementation telemetry.
+States: ready to ship, needs attention, inconclusive, and empty. `Fix with Codex` appears only for an actionable needs-attention decision. `Verify again` appears only for inconclusive reviews.
 
-Behavior: completed, active, warning, and upcoming states. No progress percentage. Each entry has a concise customer-facing description grounded in actual evidence.
+## Pre-flight
 
-## Design pre-flight
-
-- [x] Uses the locked Swiss/grid language, one oxide accent, IBM Plex pairing, real technology marks, and ruled surfaces only.
-- [x] Bans generic AI mascot theater, card grids, gradients, fake precise metrics, em dashes, scanner vocabulary, and generic substitute logos.
-- [x] Covers deterministic-only, GPT-enriched, unavailable, disconnected, reviewing, decision, history, mobile, keyboard, and reduced-motion states.
-- [x] Keeps one primary action per view and disclosure-based secondary detail.
-- [x] Accessible focus, semantic headings/lists, live review status, text-labelled marks, contrast, and 48px actions are required.
-- [x] Layout families: asymmetric ledger, count strip, ruled roster, chronological review sequence.
-- [x] Self-critique: distinctiveness 4; hierarchy 4; consistency 4; accessibility 4; state coverage 4; copy 4; restraint 4; motion motivation 4. Total 32/32.
+- [x] The design uses the locked compact technical/utilitarian product language and no homepage-scale typography.
+- [x] One primary action is visible; supporting actions are subordinate disclosures or decision-specific repairs.
+- [x] No equal three-card row, nested cards, decorative hero, fake metrics, gradient, mascot, or scanner vocabulary is introduced.
+- [x] Deterministic, enriched, unavailable, disconnected, reviewing, empty, decision, history, mobile, keyboard, and reduced-motion states are covered.
+- [x] Desktop and mobile preserve one linear keyboard order; controls retain visible focus and 44px targets.
+- [x] Browser-level horizontal and vertical overflow is absent; the viewport app shell has no horizontal overflow.
+- [x] Self-critique: distinctiveness 3; hierarchy 4; consistency 4; accessibility 4; state coverage 4; copy 4; restraint 4; motion motivation 4. Total 31/32.
 
 ## Build handoff
 
-**Target:** React/Vite SPA engineering. Use native semantic controls already present in this repository; do not add a component-library façade.
+**Target:** React/Vite SPA engineering.
 
-Implement exactly this spec. Use the locked tokens and data contracts; do not redesign or re-implement its components.
+Implement exactly this spec. Theme native semantic controls with the locked product tokens; do not redesign or re-implement its components.
 
 Acceptance criteria:
 
-- A first-time developer sees actual project facts and a credible thesis before the Verify action.
-- GPT enrichment is strictly structured, bounded to the discovered local project outline, and persisted only in local project memory.
-- The dashboard displays real technology marks, genuine counts, local-memory continuity, and one human release path.
-- Review progress stays customer-readable and Deep Security Review remains one contributor to the final decision.
+- The dashboard first frame shows project context and Verify without an oversized brand or project hero.
+- Project Understanding, Local Memory, Recent Changes, Verify, Latest Review, Deep Security Review, and History are compact modules with clear task hierarchy.
+- No module or viewport has horizontal overflow. Browser-level scrollbars remain absent while all content remains keyboard, wheel, and touch reachable.
+- Technology marks, project counts, local-memory wording, and human review progress use real data only.

@@ -65,14 +65,14 @@ Decision needed: provide the official details or approve the provisional operati
 
 ## Q6 — Should Deep Security Review be used in the hackathon demo?
 
-Why it matters: the supplied service can add credible security evidence, but it requires GitHub credentials, MongoDB, external tools, and stronger target-scan safety controls than Verion currently has.
+Why it matters: security must be credible without turning a local-first teammate into a hosted repository service.
 
 Possible solutions:
 
-- **Option A:** Keep it out of the current functional demo and complete the core loop first. This best protects reliability and the non-negotiable MVP.
-- **Option B:** Run the isolated Stage 0 compatibility and safety spike after the timed demo rehearsal. Integrate only one high-confidence security finding if the result materially strengthens the demo.
-- **Option C:** Integrate its full scanner suite and reporting UI now. This is not recommended because it creates scope creep and conflicts with Verion's selective release-decision experience.
+- **Option A:** Keep security as an explicit, bounded local review after the first project understanding moment.
+- **Option B:** Include a non-mutating npm dependency-vulnerability lookup when an npm lockfile is present.
+- **Option C:** Add a separate hosted repository scanner and security dashboard. This conflicts with the local-first product boundary.
 
-Decision needed: approve Option A or Option B. See `SECURITY_INTEGRATION_PLAN.md` for the staged plan and mandatory safeguards.
+Decision needed: choose the bounded local path and preserve one shared release decision. See `SECURITY_INTEGRATION_PLAN.md` for the safeguards.
 
-**Resolved 2026-07-17:** The explicit product request approves a narrow Stage 1 adapter. Verion may run an optional Deep security review only when a loopback-only local service and an explicitly configured GitHub repository identity are present. It sends neither a target URL nor credentials, source, local memory, or browser material; it admits only critical high-confidence concerns into the existing release decision. A real authorized-service validation remains required before relying on this review for a release.
+**Resolved 2026-07-19:** Deep Security Review runs against the directory that launched Verion. It never requires GitHub credentials, MongoDB, a repository identity, or a separate local service. Local code, credential, configuration, and dependency checks start only after the developer presses the Security action; normalized critical and high concerns feed the existing release decision. Missing specialist coverage is shown as an incomplete review, never a clean pass.

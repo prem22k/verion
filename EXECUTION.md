@@ -57,8 +57,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 - Redesigned persisted release reports as a bounded Staff Engineer decision brief: one recommendation, confidence label, likely root cause, at most three reasons, and one next action. Legacy local reports normalize safely, while the browser receives only this curated conclusion.
 - Implemented the Fix Packet handoff for supported Needs Attention reports. Verion writes a private, owner-only repair brief under `.verion/fix-packets/`, opens an interactive local Codex session without edit automation, and relies on the existing source watcher to review a saved repair.
 - Designed the Verion Presence as a lightweight state signal with six lifecycle-backed states: Learning, Watching, Thinking, Reviewing, Concerned, and Ready. Implementation is intentionally deferred until this identity specification is approved.
-- Added an optional local Deep security review as a normalized Evidence Producer. It is explicitly repository-authorized, loopback-only, filtered to critical high-confidence concerns before orchestration, and feeds the existing release decision without adding a second product surface.
-- Made the security review engine a shipped internal capability under `services/security/`, installed through the root workspace and started automatically for an authorized review while preserving Verion's Evidence-only and single-release-decision boundary.
+- Replaced the earlier repository-service experiment with a built-in Deep Security Review. A developer starts it from Security; it scans the launch-directory project locally and feeds normalized critical and high concerns into the existing release decision without a database, GitHub identity, or separate process.
 - Replaced landing-page-only browser observation with repository-guided exploration of a bounded set of known static journeys: sign-in, dashboard, billing, and settings when present. It inspects navigation and forms without clicking arbitrarily, entering data, or submitting mutations.
 - Polished the customer journey into one intentional release loop: Understand, Review, Explain, Fix, Verify the repair, and Ready to ship. The dashboard adds only a quiet orientation rail and state-specific copy; no new workflow or backend capability was added.
 - Completed a Build Week judge-pass UX review and corrected the largest demo risk: a completed release decision now appears before Mission Control context, with truthful pre-fix, repair-watch, and repair-review phase language.
@@ -70,7 +69,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 ## In-Progress Work
 
 - Validate the complete customer-facing verification and release-report flow against arbitrary running projects. Mission Control now includes the live review path, Project Understanding briefing, and bounded release-confidence report.
-- Validate Deep security review with an authorized local service and repository identity, including a completed critical concern, a clean completion, and an unavailable-service Inconclusive result.
+- Validate Deep Security Review against representative local projects, including code/config concerns, npm dependency concerns, a clean completion, and a missing local app.
 
 ## Blockers
 
@@ -82,7 +81,7 @@ Complete the first target-agnostic vertical slice: discovery → graph → brows
 2. Verify watcher behavior against an external project target, including Mission Control's local recent-changes and report updates.
 3. Validate the complete Fix with Codex → saved repair → watcher-driven verification loop against an arbitrary project with an available local Codex CLI.
 4. Implement the approved Verion Presence state language without adding a chatbot, mascot, or simulated progress behavior.
-5. Run the optional Deep security review against an authorized repository only after its local service is available and independently validated.
+5. Run Deep Security Review against representative npm and non-npm local projects, including its automatic loopback app detection.
 
 ## Important Decisions
 
