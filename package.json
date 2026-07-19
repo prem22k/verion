@@ -1,25 +1,45 @@
 {
   "name": "verion",
-  "private": true,
   "version": "0.1.0",
-  "type": "module",
-  "workspaces": [
-    "services/security"
+  "description": "A local project teammate that learns your application and reviews changes before you ship.",
+  "keywords": [
+    "local-development",
+    "ai-code-review",
+    "project-understanding",
+    "release-review"
   ],
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "verion": "./bin/verion.mjs"
   },
+  "files": [
+    "agent",
+    "bin",
+    "public",
+    "src",
+    "index.html",
+    "server.ts"
+  ],
   "scripts": {
     "dev": "tsx agent/cli.ts start",
     "dev:verion": "tsx agent/cli.ts start",
     "start": "tsx agent/cli.ts start",
     "dev:vite": "vite",
-    "dev:security": "npm --workspace @verion/security-engine run dev",
     "build": "tsc -b && vite build",
-    "build:security": "npm --workspace @verion/security-engine run build",
     "preview": "vite preview",
     "verify:demo": "tsx agent/run-verification.ts",
     "capture:dashboard": "tsx agent/capture-dashboard.ts",
+    "check:assistant": "tsx agent/core/assistantPhase4Check.ts",
+    "check:security": "node --import tsx agent/core/securityPhase5Check.ts",
+    "check:repair": "node --import tsx agent/core/repairPhase6Check.ts",
+    "check:reliability": "node --import tsx agent/core/phase7ReliabilityCheck.ts",
+    "check:browser": "node --import tsx agent/phase7BrowserCheck.ts",
+    "check:package": "node --import tsx agent/phase7PackageCheck.ts",
+    "check:phase7": "npm run check:reliability && npm run check:assistant && npm run check:security && npm run check:repair && npm run check:browser && npm run check:package",
     "discover": "tsx agent/cli.ts discover",
     "capsule": "tsx agent/cli.ts capsule",
     "verify": "tsx agent/cli.ts verify"
@@ -28,6 +48,7 @@
     "@fontsource-variable/ibm-plex-sans": "^5.2.8",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@vitejs/plugin-react": "latest",
+    "playwright": "latest",
     "react": "latest",
     "react-dom": "latest",
     "simple-icons": "^16.26.0",
@@ -38,7 +59,6 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "playwright": "latest",
     "typescript": "latest"
   }
 }
